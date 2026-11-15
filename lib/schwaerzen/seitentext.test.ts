@@ -1,6 +1,6 @@
 /* Seitentext aus Wörtern und Balken. Erfundene Daten. */
 import { describe, expect, it } from 'vitest';
-import { autoBalken, listenTreffer, musterBereiche, nummernTreffer, seitenText, type Stueck } from './seitentext';
+import { anschriftZeilen, autoBalken, listenTreffer, musterBereiche, nummernTreffer, seitenText, type Stueck } from './seitentext';
 
 const L = [{ text: 'Max Mustermann', ersatz: '[Vater]' }, { text: 'Musterweg 5', ersatz: '[Adresse]' }];
 // zwei Zeilen: "Herrn Max Mustermann" / "Vertrag 71206680 Beispielstadt"
@@ -75,5 +75,20 @@ describe('autoBalken: keine überlagerten Platzhalter', () => {
     const L2 = [...L, { text: '12345 Musterstadt', ersatz: '[Adresse]' }];
     const st = [...zeile(0, 'Herrn', 'Max', 'Mustermann'), ...zeile(40, '12345', 'Musterstadt'), ...zeile(80, 'IBAN', 'DE89', '3704', '0044', '0532', '0130', '00')];
     expect(autoBalken(st, L2).map((b) => b.label).sort()).toEqual(['[Adresse]', '[IBAN]', '[Vater]']);
+  });
+});
+
+describe('Anschriftenfeld ohne Schwärzliste', () => {
+  it('erkennt Name und Anschrift unter „Herrn“/„Frau“, nicht aber normale Zeilen', () => {
+    expect(anschriftZeilen(['Beispiel AG', 'Herrn', 'Max Mustermann', 'Musterweg 5', '12345 Musterstadt', 'Versicherungsschein']))
+      .toEqual([{ index: 2, label: '[Name]' }, { index: 3, label: '[Adresse]' }, { index: 4, label: '[Adresse]' }]);
+    expect(anschriftZeilen(['Frau', 'Erika Mustermann', 'Am Hang 12 a', 'Sehr geehrte Frau'])).toEqual([{ index: 1, label: '[Name]' }, { index: 2, label: '[Adresse]' }]);
+    expect(anschriftZeilen(['Herrn Dr. Max Beispiel', 'Musterweg 5'])).toEqual([]);
+  });
+  it('Balken und Text: Anschrift im Bild und im gespeicherten Text ersetzt', () => {
+    x = 0;
+    const st = [...zeile(0, 'Herrn'), ...zeile(20, 'Max', 'Mustermann'), ...zeile(40, 'Musterweg', '5'), ...zeile(60, '12345', 'Musterstadt'), ...zeile(100, 'Hausrat')];
+    const b = autoBalken(st, []);
+    expect(seitenText(st, b, [])).toBe('Herrn\n[Name]\n[Adresse]\n[Adresse]\nHausrat');
   });
 });

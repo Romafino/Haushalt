@@ -41,7 +41,7 @@ export default function DokumentNeu() {
 
   const labels = useMemo(() => Array.from(new Set([...sl.liste.map((e) => e.ersatz), "[Name]", "[Adresse]", "[Nummer]", "[geschwärzt]"])), [sl.liste]);
 
-  async function laden(files: FileList | null) {
+  async function laden(files: FileList | File[] | null) {
     if (!files?.length) return;
     setFehler(""); setSeiten(null); setAktiv(0); setKi(null); setAuswahl(null);
     try {
@@ -54,6 +54,14 @@ export default function DokumentNeu() {
       setFehler("Die Datei konnte nicht geöffnet werden: " + (e instanceof Error ? e.message : String(e)));
     }
     setStatus("");
+  }
+
+  /** Erfundene Beispiel-Police zum Ausprobieren (keine echten Daten). */
+  async function beispiel() {
+    setStatus("Beispiel wird geladen …");
+    const r = await fetch("/beispiel/beispiel-police.pdf");
+    if (!r.ok) { setStatus(""); return setFehler("Das Beispiel konnte nicht geladen werden."); }
+    await laden([new File([await r.blob()], "beispiel-police.pdf", { type: "application/pdf" })]);
   }
 
   async function auslesen() {
@@ -116,6 +124,7 @@ export default function DokumentNeu() {
       <section className="karte">
         <p className="leise">Fotos oder ein PDF. Alles wird auf diesem Gerät gelesen und geschwärzt; gespeichert wird nur die geschwärzte Fassung.</p>
         <input ref={eingabe} type="file" accept="application/pdf,image/*" multiple onChange={(e) => laden(e.target.files)} />
+        <button type="button" className="zweitrangig" onClick={beispiel} disabled={!!status}>Beispiel-Dokument laden (erfundene Daten)</button>
         {status && <p className="leise" role="status">{status}</p>}
         {fehler && <p className="fehler" role="alert">{fehler}</p>}
       </section>

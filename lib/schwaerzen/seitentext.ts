@@ -52,10 +52,33 @@ export function musterBereiche(text: string): { start: number; ende: number; lab
   return out;
 }
 
+/* Anschriftenfeld: Zeile nur „Herrn/Frau/Familie/Eheleute“ → nächste Zeile Name, danach Straße/Ort als Adresse. */
+const ANREDE_ZEILE = /^(herrn?|frau|familie|eheleute)$/i;
+const STRASSE = /^[A-ZÄÖÜ][^\d]{2,}\s\d{1,4}\s?[a-zA-Z]?(\s*[-/]\s*\d{1,4}[a-zA-Z]?)?$/;
+const PLZ_ORT = /^\d{5}\s+[A-ZÄÖÜ]/;
+export function anschriftZeilen(zeilenTexte: string[]): { index: number; label: string }[] {
+  const out: { index: number; label: string }[] = [];
+  zeilenTexte.forEach((t, i) => {
+    if (!ANREDE_ZEILE.test(t.trim()) || i + 1 >= zeilenTexte.length) return;
+    out.push({ index: i + 1, label: '[Name]' });
+    for (let j = i + 2; j <= i + 4 && j < zeilenTexte.length; j++) {
+      const z = zeilenTexte[j].trim();
+      if (STRASSE.test(z) || PLZ_ORT.test(z)) out.push({ index: j, label: '[Adresse]' }); else break;
+    }
+  });
+  return out;
+}
+
 /** Automatische Balken einer Seite: Liste und IBAN (übernommen, balkenFuer) plus musterBereiche je Zeile. */
 export function autoBalken(stuecke: Stueck[], liste: ListenEintrag[]): Balken[] {
   const out: Balken[] = balkenFuer(stuecke, liste.map((e) => ({ text: e.text, label: e.ersatz })), { iban: true });
-  for (const z of zeilen(stuecke) as Stueck[][]) {
+  const alleZeilen = zeilen(stuecke) as Stueck[][];
+  for (const { index, label } of anschriftZeilen(alleZeilen.map((z) => zeileAus(z).text))) {
+    const zl = zeileAus(alleZeilen[index]), k = zl.kasten(0, zl.text.length), r = Math.max(2, k.h * 0.18), rx = Math.max(3, k.h * 0.45);
+    const neu: Balken = { x: k.x - rx, y: k.y - r, w: k.w + 2 * rx, h: k.h + 2 * r, label, auto: true, quelle: 'anschrift' };
+    if (!out.some((b) => ueberlappung(neu, b) > 0.3)) out.push(neu);
+  }
+  for (const z of alleZeilen) {
     const zl = zeileAus(z);
     for (const t of musterBereiche(zl.text)) {
       const k = zl.kasten(t.start, t.ende), r = Math.max(2, k.h * 0.18), rx = Math.max(3, k.h * 0.45);
