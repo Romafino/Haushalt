@@ -28,12 +28,14 @@ export function Formular({ bereich, start, akte, mitBezuegen, onSpeichern, eigen
   akte: Akte;
   mitBezuegen?: Bezuege;
   eigeneId?: string;
-  onSpeichern: (werte: Record<string, unknown>, bezuege?: Bezuege) => Promise<string | null>;
+  /** null = gespeichert; string = Fehler; { hinweis } = gespeichert mit Hinweis */
+  onSpeichern: (werte: Record<string, unknown>, bezuege?: Bezuege) => Promise<string | null | { hinweis: string }>;
 }) {
   const [werte, setWerte] = useState<Werte>(() => Object.fromEntries(bereich.felder.map((f) => [f.name, anzeigen(start[f.name])])));
   const [bez, setBez] = useState<Bezuege | undefined>(mitBezuegen);
   const [fehler, setFehler] = useState<Record<string, string>>({});
   const [meldung, setMeldung] = useState("");
+  const [ok, setOk] = useState(false);
   const [laeuft, setLaeuft] = useState(false);
 
   const setze = (n: string, v: string | boolean) => setWerte((w) => ({ ...w, [n]: v }));
@@ -55,11 +57,13 @@ export function Formular({ bereich, start, akte, mitBezuegen, onSpeichern, eigen
     }
     setFehler(neu);
     setMeldung("");
+    setOk(false);
     if (Object.keys(neu).length) return setMeldung("Bitte die markierten Felder prüfen.");
     setLaeuft(true);
     const f = await onSpeichern(umwandeln(bereich.felder, werte), bez);
     setLaeuft(false);
-    setMeldung(f ?? "Gespeichert.");
+    setOk(typeof f !== "string");
+    setMeldung(f === null ? "Gespeichert." : typeof f === "string" ? f : "Gespeichert. " + f.hinweis);
   }
 
   const gruppen = Array.from(new Set(bereich.felder.map((f) => f.gruppe ?? "")));
@@ -83,7 +87,7 @@ export function Formular({ bereich, start, akte, mitBezuegen, onSpeichern, eigen
         </fieldset>
       )}
 
-      {meldung && <p className={meldung === "Gespeichert." ? "leise" : "fehler"} role="status">{meldung}</p>}
+      {meldung && <p className={ok ? "leise" : "fehler"} role="status">{meldung}</p>}
       <button type="submit" disabled={laeuft}>{laeuft ? "Wird gespeichert …" : "Speichern"}</button>
     </form>
   );
