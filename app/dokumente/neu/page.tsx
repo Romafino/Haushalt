@@ -11,6 +11,9 @@ import { dateienLaden, erkennen, type Seite } from "@/lib/geraet/seiten";
 import { dokumentSpeichern } from "@/lib/geraet/speichern";
 import { autoBalken, seitenText } from "@/lib/schwaerzen/seitentext";
 import { freitextPruefen } from "@/lib/akte/freitext";
+import { kiAuslesen, type KiAntwort } from "@/lib/geraet/ki";
+import { startAuswahl, uebernahme, type Auswahl } from "@/lib/ki/uebernahme";
+import { VorschlagPruefen } from "@/components/dokument/vorschlag";
 import * as R from "@/lib/regeln";
 
 export default function DokumentNeu() {
@@ -24,6 +27,12 @@ export default function DokumentNeu() {
   const [fehler, setFehler] = useState("");
   const [meta, setMeta] = useState<Record<string, string>>({ typ: "Brief", titel: "", datum: "", gueltigVon: "", gueltigBis: "", vertragId: "", dingId: "", firmaId: "" });
   const eingabe = useRef<HTMLInputElement>(null);
+  // Dokument-ID erst bei Bedarf erzeugen (nicht beim Vorab-Rendern); bleibt für dieses Dokument gleich
+  const dokId = useRef<string | null>(null);
+  const dokumentId = () => (dokId.current ??= crypto.randomUUID());
+  const [ki, setKi] = useState<KiAntwort | null>(null);
+  const [auswahl, setAuswahl] = useState<Auswahl | null>(null);
+  const [hinweise, setHinweise] = useState<string[]>([]);
 
   useEffect(() => {
     // Zustand der Schwärzliste prüfen (lädt nur den verschlüsselten Block).
@@ -34,7 +43,7 @@ export default function DokumentNeu() {
 
   async function laden(files: FileList | null) {
     if (!files?.length) return;
-    setFehler(""); setSeiten(null); setAktiv(0);
+    setFehler(""); setSeiten(null); setAktiv(0); setKi(null); setAuswahl(null);
     try {
       const r = await dateienLaden(Array.from(files), setStatus);
       try { await erkennen(r.seiten, setStatus); }
@@ -47,6 +56,22 @@ export default function DokumentNeu() {
     setStatus("");
   }
 
+  async function auslesen() {
+    if (!seiten || !haushaltId || !akte) return;
+    setFehler(""); setStatus("Die KI liest die geschwärzten Seiten …");
+    try {
+      const k = await kiAuslesen(haushaltId, seiten, sl.liste, akte);
+      setKi(k);
+      const a = startAuswahl(k.vorschlag);
+      setAuswahl(a);
+      const d = k.vorschlag.dokument ?? {};
+      setMeta((m) => ({ ...m, typ: String(d.typ ?? m.typ), titel: String(d.titel ?? m.titel), datum: String(d.datum ?? ""), gueltigVon: String(d.gueltigVon ?? ""), gueltigBis: String(d.gueltigBis ?? "") }));
+    } catch (e) {
+      setFehler(e instanceof Error ? e.message : "Die KI ist gerade nicht erreichbar.");
+    }
+    setStatus("");
+  }
+
   async function speichern(e: FormEvent) {
     e.preventDefault();
     if (!seiten || !haushaltId) return;
@@ -54,8 +79,13 @@ export default function DokumentNeu() {
     if (t) return setFehler("Titel: " + t);
     setFehler("");
     try {
-      const m: Record<string, unknown> = Object.fromEntries(Object.entries(meta).map(([k, v]) => [k, v || null]));
-      const id = await dokumentSpeichern({ haushaltId, meta: m, seiten, quelle, liste: sl.liste, status: setStatus });
+      let m: Record<string, unknown> = Object.fromEntries(Object.entries(meta).map(([k, v]) => [k, v || null]));
+      let ops: ReturnType<typeof uebernahme>["ops"] = [];
+      if (ki && auswahl && akte) {
+        const u = uebernahme(ki.vorschlag, { ...auswahl, dokument: m }, akte, { dokumentId: dokumentId(), heute: R.heute(), neueId: () => crypto.randomUUID() });
+        m = u.meta; ops = u.ops; setHinweise(u.hinweise);
+      }
+      const id = await dokumentSpeichern({ haushaltId, meta: m, seiten, quelle, liste: sl.liste, ops, id: dokumentId(), status: setStatus });
       router.replace(`/dokumente/${id}`);
     } catch (e2) {
       setFehler(e2 instanceof Error ? e2.message : "Speichern hat nicht geklappt.");
@@ -111,6 +141,21 @@ export default function DokumentNeu() {
             <p className="leise">Bitte jede Seite prüfen: Namen, Anschrift, Unterschrift, Nummern. Fehlt ein Balken, „Balken ziehen“.</p>
           </section>
 
+          <section className="karte">
+            <h2>Mit KI auslesen</h2>
+            <p className="leise">Sendet nur die geschwärzten Seiten (Bild und Text) an die KI. Sie schlägt Angaben, Vertrag, Firma, Ereignis und Steckbrief vor; du bestätigst. Kosten je Dokument nur wenige Cent [prüfen], Monatslimit {Number(akte?.einst.kiLimitEuro ?? 10)} €.</p>
+            {!ki && <button type="button" onClick={auslesen} disabled={!!status || !akte}>Mit KI auslesen</button>}
+            {ki && (
+              <p className={ki.limit?.warnung ? "fehler" : "leise"}>
+                Kosten dieses Aufrufs: {(ki.kostenCent / 100).toLocaleString("de-DE", { style: "currency", currency: "EUR", minimumFractionDigits: 3 })}.
+                {" "}Diesen Monat: {((ki.limit?.verbrauchtCent ?? 0) / 100).toLocaleString("de-DE", { style: "currency", currency: "EUR" })} von {((ki.limit?.limitCent ?? 1000) / 100).toLocaleString("de-DE", { style: "currency", currency: "EUR" })}.
+              </p>
+            )}
+            {ki?.warnung && <p className="fehler" role="alert">{ki.warnung}</p>}
+          </section>
+
+          {ki && auswahl && akte && <VorschlagPruefen v={ki.vorschlag} a={auswahl} setA={setAuswahl} S={akte} />}
+
           <form className="karte formular" onSubmit={speichern}>
             <h2>Angaben</h2>
             <label>Art<select value={meta.typ} onChange={(e) => setMeta({ ...meta, typ: e.target.value })}>{R.ENUM.typ.map((t) => <option key={t}>{t}</option>)}</select></label>
@@ -118,14 +163,14 @@ export default function DokumentNeu() {
             <label>Datum des Dokuments<input type="date" value={meta.datum} onChange={(e) => setMeta({ ...meta, datum: e.target.value })} /></label>
             <label>Gültig von<input type="date" value={meta.gueltigVon} onChange={(e) => setMeta({ ...meta, gueltigVon: e.target.value })} /></label>
             <label>Gültig bis<input type="date" value={meta.gueltigBis} onChange={(e) => setMeta({ ...meta, gueltigBis: e.target.value })} /></label>
-            {akte && (
+            {akte && !auswahl && (
               <>
                 <label>Vertrag<select value={meta.vertragId} onChange={(e) => setMeta({ ...meta, vertragId: e.target.value })}><option value="">–</option>{akte.vertraege.map((v) => <option key={v.id} value={v.id}>{String(v.kurzname)}</option>)}</select></label>
                 <label>Ding<select value={meta.dingId} onChange={(e) => setMeta({ ...meta, dingId: e.target.value })}><option value="">–</option>{akte.dinge.map((d) => <option key={d.id} value={d.id}>{String(d.name)}</option>)}</select></label>
                 <label>Firma<select value={meta.firmaId} onChange={(e) => setMeta({ ...meta, firmaId: e.target.value })}><option value="">–</option>{akte.firmen.map((f) => <option key={f.id} value={f.id}>{String(f.name)}</option>)}</select></label>
               </>
             )}
-            <p className="leise">Das Auslesen per KI (Felder automatisch ausfüllen, Steckbrief) kommt im nächsten Schritt.</p>
+            {hinweise.length > 0 && <ul className="leise">{hinweise.map((h, i) => <li key={i}>{h}</li>)}</ul>}
             <button type="submit" disabled={!!status}>Geschwärzt speichern</button>
           </form>
         </>
