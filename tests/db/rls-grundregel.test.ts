@@ -176,7 +176,8 @@ describe("Funktionen", () => {
 
   it("jede SECURITY-DEFINER-Funktion im Schema public ist bewusst freigegeben", async () => {
     const r = await db.query("select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.prosecdef order by 1");
-    expect(r.rows.map((x) => x.proname)).toEqual(["haushalt_anlegen", "mitglied_hinzufuegen"]);
+    // kalender_daten: Abruf ohne Anmeldung nur mit geheimem Schlüssel (Hash-Abgleich), getestet in kalender.test.ts
+    expect(r.rows.map((x) => x.proname)).toEqual(["haushalt_anlegen", "kalender_daten", "mitglied_hinzufuegen"]);
   });
 
   it("haushalt_anlegen trägt den Aufrufer als einziges Mitglied ein", async () => {

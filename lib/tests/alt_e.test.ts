@@ -16,7 +16,7 @@ test('Altbestand e', async () => {
   const ics = L.icsText(L.alleFristen(S).filter((f: any) => f.id === 't1'), 42, '20261112T080000Z');
   assert(ics.includes('DTSTART;VALUE=DATE:20261120\r\nDTEND;VALUE=DATE:20261121')); console.log('ok  Kalenderdatei: ganztägig am 20.11.2026');
   assert(ics.includes('UID:haushalt-t1-2026-11-20@haushalts-app') && ics.includes('TRIGGER:PT9H') && ics.includes('TRIGGER:-PT999H')); console.log('ok  Kalenderdatei: feste UID, Alarm 9 Uhr, Vorwarnung 42 Tage vorher');
-  assert(ics.includes('Zugang bis 30.11.2026\; falls\\, nötig') && ics.split('\r\n').every((z: any) => z.length <= 75)); console.log('ok  Kalenderdatei: Sonderzeichen maskiert, Zeilen höchstens 75 Zeichen');
+  assert(ics.includes('Zugang bis 30.11.2026\\; falls\\, nötig') /* bewusst geändert: ; jetzt maskiert (RFC 5545) */ && ics.split('\r\n').every((z: any) => z.length <= 75)); console.log('ok  Kalenderdatei: Sonderzeichen maskiert, Zeilen höchstens 75 Zeichen');
   // Abgleich
   let k = L.kalenderListe(S, T);
   eq([k.neu.map((f: any) => f.id), k.loeschen.length], [['t1', 'kb_v1'], 0], 'Kalender: 2 neu, 0 löschen');
