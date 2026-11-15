@@ -3,6 +3,20 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 
+// Verständliche Meldung je Fehlerart; der Code in Klammern hilft bei der Fehlersuche.
+function fehlerText(e: { code?: string; status?: number; message?: string }): string {
+  const code = e.code ?? (e.status ? `http_${e.status}` : "unbekannt");
+  const texte: Record<string, string> = {
+    invalid_credentials: "E-Mail oder Passwort stimmen nicht.",
+    email_not_confirmed: "Der Zugang ist noch nicht bestätigt (in Supabase „Auto Confirm User“ bzw. Nutzer bestätigen).",
+    email_provider_disabled: "Die Anmeldung per E-Mail ist in Supabase ausgeschaltet.",
+    user_banned: "Dieser Zugang ist gesperrt.",
+    over_request_rate_limit: "Zu viele Versuche. Bitte einige Minuten warten.",
+    technik: "Technischer Fehler: " + (e.message ?? ""),
+  };
+  return `${texte[code] ?? "Anmeldung fehlgeschlagen: " + (e.message ?? "")} (${code})`;
+}
+
 export default function Anmelden() {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -14,10 +28,16 @@ export default function Anmelden() {
     e.preventDefault();
     setFehler("");
     setLaeuft(true);
-    const { error } = await supabaseBrowser().auth.signInWithPassword({ email: email.trim(), password: passwort });
+    let error: { code?: string; status?: number; message?: string } | null = null;
+    try {
+      ({ error } = await supabaseBrowser().auth.signInWithPassword({ email: email.trim(), password: passwort }));
+    } catch (e) {
+      // z. B. fehlende Umgebungsvariablen oder kein Netz
+      error = { code: "technik", message: e instanceof Error ? e.message : String(e) };
+    }
     setLaeuft(false);
     if (error) {
-      setFehler("Anmeldung fehlgeschlagen. Bitte E-Mail und Passwort prüfen.");
+      setFehler(fehlerText(error));
       return;
     }
     router.replace("/");
