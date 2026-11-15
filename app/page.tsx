@@ -2,21 +2,32 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/browser";
+import { ladeAkte } from "@/lib/akte/laden";
+import type { Akte } from "@/lib/akte/abbilden";
+import { Uebersicht } from "@/components/uebersicht";
 
 type Haushalt = { id: string; name: string };
-
 export default function Start() {
   const router = useRouter();
   const [haushalte, setHaushalte] = useState<Haushalt[] | null>(null);
+  const [akte, setAkte] = useState<Akte | null>(null);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [meldung, setMeldung] = useState("");
   const [fehler, setFehler] = useState("");
 
   const laden = useCallback(async () => {
-    const { data, error } = await supabaseBrowser().from("haushalte").select("id, name").is("verworfen_am", null).order("erstellt_am");
-    if (error) setFehler("Daten konnten nicht geladen werden.");
+    const sb = supabaseBrowser();
+    const { data, error } = await sb.from("haushalte").select("id, name").is("verworfen_am", null).order("erstellt_am");
+    if (error) return setFehler("Daten konnten nicht geladen werden.");
     setHaushalte(data ?? []);
+    if (data?.length) {
+      try {
+        setAkte(await ladeAkte(sb, data[0].id));
+      } catch {
+        setFehler("Die Akte konnte nicht geladen werden.");
+      }
+    }
   }, []);
 
   useEffect(() => {
@@ -50,10 +61,12 @@ export default function Start() {
     router.refresh();
   }
 
+  const h = haushalte?.[0];
+
   return (
     <main className="seite">
       <div className="zeile">
-        <h1>Haushalt</h1>
+        <h1>{h ? h.name : "Haushalt"}</h1>
         <button className="zweitrangig" onClick={abmelden}>Abmelden</button>
       </div>
 
@@ -71,10 +84,12 @@ export default function Start() {
         </form>
       )}
 
-      {haushalte?.map((h) => (
-        <section key={h.id} className="karte">
-          <h2>{h.name}</h2>
-          <p className="leise">Hier entstehen in den nächsten Schritten „Jetzt wichtig“, Bereiche, Fixkosten und §35a.</p>
+      {h && !akte && !fehler && <p className="leise">Akte wird geladen …</p>}
+      {h && akte && <Uebersicht akte={akte} />}
+
+      {h && (
+        <details className="karte">
+          <summary>Haushalt teilen</summary>
           <form onSubmit={(e) => hinzufuegen(e, h.id)} style={{ display: "grid", gap: "0.75rem" }}>
             <label>
               Weitere Person hinzufügen (E-Mail eines bestehenden Zugangs)
@@ -83,8 +98,8 @@ export default function Start() {
             <button type="submit" className="zweitrangig">Hinzufügen</button>
             {meldung && <p className="leise">{meldung}</p>}
           </form>
-        </section>
-      ))}
+        </details>
+      )}
     </main>
   );
 }

@@ -15,7 +15,7 @@ const WURZEL = join(__dirname, "..", "..");
 export async function datenbankAufbauen(): Promise<pg.Client> {
   const db = new pg.Client({ connectionString: DB_URL });
   await db.connect();
-  await db.query("drop schema if exists public cascade; drop schema if exists auth cascade; create schema public;");
+  await db.query("drop schema if exists public cascade; drop schema if exists privat cascade; drop schema if exists auth cascade; create schema public;");
   await db.query(readFileSync(join(WURZEL, "tests/db/supabase-nachbildung.sql"), "utf8"));
   const ordner = join(WURZEL, "supabase/migrations");
   for (const datei of readdirSync(ordner).filter((d) => d.endsWith(".sql")).sort()) {
