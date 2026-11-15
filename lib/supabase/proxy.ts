@@ -2,7 +2,8 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { supabaseUmgebung } from "./umgebung";
 
-const OFFEN = ["/anmelden"];
+// /api/kalender: Abruf durch Kalender-Apps ohne Anmeldung, geschützt durch den geheimen Schlüssel im Link
+const OFFEN = ["/anmelden", "/api/kalender"];
 
 /**
  * Frischt die Anmeldung je Anfrage auf und leitet Nicht-Angemeldete zur Anmeldung.
