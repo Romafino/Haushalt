@@ -13,10 +13,10 @@ export interface KiAnbieter {
 
 const GEMINI = 'https://generativelanguage.googleapis.com/v1beta';
 
-export function geminiAnfrage(prompt: string, bilder: Bild[]) {
+export function geminiAnfrage(prompt: string, bilder: Bild[], json = true) {
   return {
     contents: [{ role: 'user', parts: [{ text: prompt }, ...bilder.map((b) => ({ inlineData: { mimeType: b.mime, data: b.base64 } }))] }],
-    generationConfig: { temperature: 0, responseMimeType: 'application/json' },
+    generationConfig: json ? { temperature: 0, responseMimeType: 'application/json' } : { temperature: 0 },
   };
 }
 
@@ -47,15 +47,17 @@ async function googleFehler(r: Response): Promise<string> {
   } catch { return ''; }
 }
 
-export function gemini(schluessel: string, modell: string, abrufen: typeof fetch = fetch): KiAnbieter & { mitModell: (m: string) => KiAnbieter } {
+export type GeminiOptionen = { timeoutMs?: number; json?: boolean };
+
+export function gemini(schluessel: string, modell: string, abrufen: typeof fetch = fetch, opt: GeminiOptionen = {}): KiAnbieter & { mitModell: (m: string) => KiAnbieter } {
   const kopf = { 'Content-Type': 'application/json', 'x-goog-api-key': schluessel };
   return {
     name: 'gemini',
     modell,
-    mitModell: (m: string) => gemini(schluessel, m, abrufen),
+    mitModell: (m: string) => gemini(schluessel, m, abrufen, opt),
     async auslesen(prompt, bilder) {
       const r = await abrufen(`${GEMINI}/models/${encodeURIComponent(modell)}:generateContent`, {
-        method: 'POST', headers: kopf, body: JSON.stringify(geminiAnfrage(prompt, bilder)), signal: AbortSignal.timeout(55000),
+        method: 'POST', headers: kopf, body: JSON.stringify(geminiAnfrage(prompt, bilder, opt.json ?? true)), signal: AbortSignal.timeout(opt.timeoutMs ?? 55000),
       });
       if (r.status === 429) throw new KiFehler('kontingent', 'Das Kontingent der KI ist gerade ausgeschöpft. Bitte später erneut versuchen.', await googleFehler(r));
       if (r.status === 404) throw new KiFehler('modell', `Das KI-Modell „${modell}“ ist mit diesem Schlüssel nicht nutzbar. Bitte in Vercel GEMINI_MODELL ändern (Test: /api/ki/test).`, await googleFehler(r));
