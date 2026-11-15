@@ -25,6 +25,11 @@ describe('Gemini', () => {
     expect(() => geminiAntwort({ candidates: [] })).toThrow('keine Antwort');
   });
 
+  it('404 → Modell nicht nutzbar, mit Googles Fehlertext als Detail', async () => {
+    const f = (async () => new Response(JSON.stringify({ error: { status: 'NOT_FOUND', message: 'models/x is not found' } }), { status: 404 })) as typeof fetch;
+    await expect(gemini('k', 'x', f).auslesen('p', [])).rejects.toMatchObject({ code: 'modell', detail: 'NOT_FOUND: models/x is not found' });
+  });
+
   it('429 → Kontingent, andere Fehler → nicht erreichbar', async () => {
     const mit = (status: number) => (async () => new Response('x', { status })) as typeof fetch;
     await expect(gemini('k', 'm', mit(429)).auslesen('p', [])).rejects.toMatchObject({ code: 'kontingent' });

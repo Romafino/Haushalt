@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     await protokoll(null, false);
     const code = err instanceof KiFehler ? err.code : "unbekannt";
-    console.error("ki/dokument fehlgeschlagen:", code); // nur der Code, nie Inhalte
+    console.error("ki/dokument fehlgeschlagen:", code, err instanceof KiFehler ? err.detail : ""); // nur Code und Googles technischer Fehlertext, nie Inhalte
     return fehler(502, err instanceof KiFehler ? err.message : "Die KI ist gerade nicht erreichbar.");
   }
 }
