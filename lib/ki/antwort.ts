@@ -19,12 +19,14 @@ export type Ids = { vertraege: string[]; dinge: string[]; firmen: string[] };
 /** Bereinigter Vorschlag; Texte werden zusätzlich gegen Muster geschwärzt (falls die KI doch eine Nummer ausgibt). */
 export function vorschlagAus(roh: unknown, ids: Ids) {
   const v = R.bereinigen(roh, ids);
-  const sauber = (s: string) => {
-    let t = s.replace(new RegExp(IBAN_RE.source, 'g'), '[IBAN]');
-    for (const x of nummernTreffer(t).reverse()) t = t.slice(0, x.start) + '[Nummer]' + t.slice(x.ende);
-    return t;
-  };
-  return R.tief(v, (s: string) => sauber(s));
+  return R.tief(v, (s: string) => textSauber(s));
+}
+
+/** IBAN und lange Nummern in einem Text der KI durch Platzhalter ersetzen. */
+export function textSauber(s: string): string {
+  let t = String(s ?? '').replace(new RegExp(IBAN_RE.source, 'g'), '[IBAN]');
+  for (const x of nummernTreffer(t).reverse()) t = t.slice(0, x.start) + '[Nummer]' + t.slice(x.ende);
+  return t;
 }
 
 /** Server-seitige Sperre: Kommt geschwärzter Text an, darf er keine IBAN und keine langen Nummern mehr enthalten. */

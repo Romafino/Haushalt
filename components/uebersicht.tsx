@@ -79,6 +79,7 @@ export function Uebersicht({ akte: S, haushaltId, onGeaendert }: { akte: Akte; h
         ))}
       </section>
       <nav className="karte schnell" aria-label="Akte">
+        <Link href="/frage">Frag die Akte</Link>
         <Link href="/dokumente">Dokumente</Link>
         <Link href="/akte/vertraege">Verträge</Link>
         <Link href="/akte/firmen">Firmen</Link>
