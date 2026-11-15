@@ -36,20 +36,30 @@ export function geminiAntwort(j: GeminiAntwort): KiErgebnis {
 }
 
 export class KiFehler extends Error {
-  constructor(public code: string, meldung: string) { super(meldung); }
+  constructor(public code: string, meldung: string, public detail = '') { super(meldung); }
 }
 
-export function gemini(schluessel: string, modell: string, abrufen: typeof fetch = fetch): KiAnbieter {
+/** Fehlertext von Google (technisch, ohne Inhalte), gekürzt. */
+async function googleFehler(r: Response): Promise<string> {
+  try {
+    const j = (await r.json()) as { error?: { message?: string; status?: string } };
+    return [j.error?.status, j.error?.message].filter(Boolean).join(': ').slice(0, 300);
+  } catch { return ''; }
+}
+
+export function gemini(schluessel: string, modell: string, abrufen: typeof fetch = fetch): KiAnbieter & { mitModell: (m: string) => KiAnbieter } {
   const kopf = { 'Content-Type': 'application/json', 'x-goog-api-key': schluessel };
   return {
     name: 'gemini',
     modell,
+    mitModell: (m: string) => gemini(schluessel, m, abrufen),
     async auslesen(prompt, bilder) {
       const r = await abrufen(`${GEMINI}/models/${encodeURIComponent(modell)}:generateContent`, {
         method: 'POST', headers: kopf, body: JSON.stringify(geminiAnfrage(prompt, bilder)), signal: AbortSignal.timeout(55000),
       });
-      if (r.status === 429) throw new KiFehler('kontingent', 'Das Kontingent der KI ist gerade ausgeschöpft. Bitte später erneut versuchen.');
-      if (!r.ok) throw new KiFehler('http_' + r.status, 'Die KI ist gerade nicht erreichbar (' + r.status + ').');
+      if (r.status === 429) throw new KiFehler('kontingent', 'Das Kontingent der KI ist gerade ausgeschöpft. Bitte später erneut versuchen.', await googleFehler(r));
+      if (r.status === 404) throw new KiFehler('modell', `Das KI-Modell „${modell}“ ist mit diesem Schlüssel nicht nutzbar. Bitte in Vercel GEMINI_MODELL ändern (Test: /api/ki/test).`, await googleFehler(r));
+      if (!r.ok) throw new KiFehler('http_' + r.status, 'Die KI ist gerade nicht erreichbar (' + r.status + ').', await googleFehler(r));
       return geminiAntwort(await r.json());
     },
     async modelle() {
