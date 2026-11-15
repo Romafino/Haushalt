@@ -62,6 +62,17 @@ function Dokument() {
           <section className="karte">
             <span className="leise">{[d.typ, d.datum ? R.fmt(d.datum) : "", d.gueltigVon ? "gültig ab " + R.fmt(d.gueltigVon) : "", `${d.seiten} Seite(n)`].filter(Boolean).join(" · ")}</span>
           </section>
+          {d.steckbrief != null && (
+            <section className="karte">
+              <h2>Steckbrief</h2>
+              <ul className="liste">
+                {Object.entries(d.steckbrief as Record<string, unknown>).map(([k, w]) => (
+                  <li key={k} className="eintrag"><strong>{k}</strong><span className="leise">{Array.isArray(w) ? w.map((x) => (typeof x === "string" ? x : Object.values(x as object).filter(Boolean).join(" · "))).join("; ") : String(w)}</span></li>
+                ))}
+              </ul>
+              <p className="leise">Aus dem Dokument gelesen, ohne Gewähr. Maßgeblich sind die Bedingungen selbst.</p>
+            </section>
+          )}
           {!seiten && <p className="leise">Seiten werden geladen …</p>}
           {seiten?.map((s) => (
             <section key={s.nr} className="karte">

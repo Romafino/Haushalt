@@ -141,6 +141,23 @@ describe('Lebensereignis', () => {
   });
 });
 
+describe('ops_anwenden: neue Einträge mit Geräte-ID (Dokumentenweg)', () => {
+  it('Firma, Vertrag mit Verweis auf die Firma und Beleg in einem Schritt; vorhandene ID lässt sich nicht überschreiben', async () => {
+    const f = '7a1e0000-0000-4000-8000-000000000001', v = '7a1e0000-0000-4000-8000-000000000002';
+    await anwenden([
+      { art: 'neu', tabelle: 'firmen', daten: { id: f, name: 'Beispiel Versicherung AG', hotline: '0800 111' } },
+      { art: 'neu', tabelle: 'vertraege', daten: { id: v, kurzname: 'Wohngebäude', art: 'Versicherung', firma_id: f, beitrag: 600, zahlweise: 'jaehrlich' } },
+      { art: 'neu', tabelle: 'belege', daten: { titel: 'Rechnung Dach', firma_id: f, arbeitskosten: 800, steuer: 'handwerker', unbar: true } },
+    ]);
+    const S = await akte();
+    expect(vertrag(S, v)).toMatchObject({ kurzname: 'Wohngebäude', firmaId: f });
+    expect(S.belege.find((b) => b.firmaId === f)?.titel).toBe('Rechnung Dach');
+    await expect(anwenden([{ art: 'neu', tabelle: 'vertraege', daten: { id: v, kurzname: 'gekapert', art: 'Abo' } }])).rejects.toMatchObject({ code: '23505' });
+    await expect(anwenden([{ art: 'neu', tabelle: 'vertraege', daten: { id: v, kurzname: 'gekapert', art: 'Abo' } }], fremd, hausB)).rejects.toMatchObject({ code: '23505' });
+    expect(vertrag(await akte(), v).kurzname).toBe('Wohngebäude');
+  });
+});
+
 describe('ops_anwenden: Sicherheit und alles-oder-nichts', () => {
   it('Fehler im letzten Schritt: nichts wird gespeichert', async () => {
     const vorher = (await db.query('select count(*)::int as n from public.termine')).rows[0].n;
@@ -155,7 +172,8 @@ describe('ops_anwenden: Sicherheit und alles-oder-nichts', () => {
     [{ art: 'neu', tabelle: 'mitglieder', daten: { nutzer_id: '00000000-0000-0000-0000-000000000000' } }],
     [{ art: 'neu', tabelle: 'termine', daten: { titel: 'x', haushalt_id: '00000000-0000-0000-0000-000000000000' } }],
     [{ art: 'neu', tabelle: 'termine', daten: { titel: 'x', gibtsnicht: 1 } }],
-    [{ art: 'neu', tabelle: 'termine', daten: { titel: 'x', id: '00000000-0000-0000-0000-000000000000' } }],
+    [{ art: 'neu', tabelle: 'termine', daten: { titel: 'x', id: 'keine-uuid' } }],
+    [{ art: 'aendern', tabelle: 'termine', id: '00000000-0000-0000-0000-000000000000', daten: { id: '00000000-0000-0000-0000-000000000001' } }],
     [{ art: 'schluessel', tabelle: 'vertraege', schluessel: 'x', daten: { kurzname: 'x' } }],
     [{ art: 'loeschen', tabelle: 'termine', daten: {} }],
   ])('lehnt ab: %j', async (op) => {

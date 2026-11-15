@@ -24,12 +24,15 @@ const ueberlappung = (a: Balken, b: Balken) => {
 /* Nummern ab 5 Ziffern (wie im Schwärzer), aber Datumsangaben bleiben stehen (die KI braucht Laufzeiten und Fristen),
    ebenso Telefonnummern direkt hinter „Tel.“, „Hotline“, „Fax“ (Firmen; eigene Nummern stehen in der Schwärzliste). */
 const DATUM = /^(\d{1,2}\.\s?\d{1,2}\.\s?(\d{2}|\d{4})|\d{4}-\d{2}-\d{2})$/;
+/* Beträge im deutschen Tausenderformat (65.000 / 1.200.000) bleiben stehen: Versicherungssummen braucht der Steckbrief.
+   Nummern mit Bezeichnung („Vers.-Nr. 12.345.678“) fängt musterBereiche über die Bezeichnung. */
+const BETRAG = /^\d{1,3}(\.\d{3})+$/;
 const TELEFON_DAVOR = /(tel|telefon|fax|hotline|service|ruf|mobil)[\s.:/-]*(\+?\d[\d\s/-]*)?$/i;
 export function nummernTreffer(text: string): { start: number; ende: number }[] {
   return (treffer(text, [], { ziffern: true }) as { start: number; ende: number }[]).filter((t) => {
     const wert = text.slice(t.start, t.ende).trim();
     const davor = text.slice(Math.max(0, t.start - 24), t.start).split('\n').pop() ?? '';
-    return !DATUM.test(wert) && !TELEFON_DAVOR.test(davor);
+    return !DATUM.test(wert) && !BETRAG.test(wert) && !TELEFON_DAVOR.test(davor);
   });
 }
 
