@@ -2,8 +2,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { akteAus, type Akte, type Rohdaten } from './abbilden';
 
-const TABELLEN = ['firmen', 'dinge', 'vertraege', 'vertrag_dinge', 'vertrag_rollen', 'fassungen', 'belege', 'termine', 'ereignisse'] as const;
-const MIT_VERWERFEN = new Set(['firmen', 'dinge', 'vertraege', 'fassungen', 'belege', 'termine', 'ereignisse']);
+const TABELLEN = ['firmen', 'dinge', 'vertraege', 'vertrag_dinge', 'vertrag_rollen', 'fassungen', 'belege', 'termine', 'ereignisse', 'dokumente'] as const;
+const MIT_VERWERFEN = new Set(['firmen', 'dinge', 'vertraege', 'fassungen', 'belege', 'termine', 'ereignisse', 'dokumente']);
 
 export async function ladeAkte(supabase: SupabaseClient, haushaltId: string): Promise<Akte> {
   const [haushalt, ...teile] = await Promise.all([

@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Altbestand ist Vorlage (Artefakt-Code), wird nicht gelintet:
     "altbestand/**",
+    // selbst ausgelieferte Bibliotheken (aus node_modules kopiert):
+    "public/vendor/**",
   ]),
 ]);
 

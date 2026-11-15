@@ -29,10 +29,14 @@ export const FELDER = {
     kalDatum: 'kal_datum', kalAlt: 'kal_alt', kalTitel: 'kal_titel',
   },
   ereignisse: { datum: 'datum', typ: 'typ', text: 'text', vertragId: 'vertrag_id', dingId: 'ding_id', dokumentId: 'dokument_id' },
+  dokumente: {
+    typ: 'typ', titel: 'titel', datum: 'datum', gueltigVon: 'gueltig_von', gueltigBis: 'gueltig_bis', vertragId: 'vertrag_id', dingId: 'ding_id',
+    firmaId: 'firma_id', seiten: 'seiten', quelle: 'quelle', datenschutz: 'datenschutz', steckbrief: 'steckbrief',
+  },
 } as const;
 export type Tabelle = keyof typeof FELDER;
 
-const ZAHLEN = new Set(['beitrag', 'betrag', 'arbeitskosten', 'fristWert', 'jahr', 'vorlaufTage', 'wiederholung']);
+const ZAHLEN = new Set(['beitrag', 'betrag', 'arbeitskosten', 'fristWert', 'jahr', 'vorlaufTage', 'wiederholung', 'seiten']);
 
 /** Zeile → Eintrag der Akte. Leere Felder (null) fehlen im Eintrag, wie im Altbestand. Zahlen werden zu number. */
 export function ausZeile(tabelle: Tabelle, z: Zeile): Eintrag {
@@ -60,7 +64,7 @@ export function zuZeile(tabelle: Tabelle, e: Record<string, unknown>): Zeile {
 export type Rohdaten = {
   haushalt: { einstellungen?: Record<string, unknown> | null } | null;
   firmen: Zeile[]; dinge: Zeile[]; vertraege: Zeile[]; vertrag_dinge: Zeile[]; vertrag_rollen: Zeile[];
-  fassungen: Zeile[]; belege: Zeile[]; termine: Zeile[]; ereignisse: Zeile[];
+  fassungen: Zeile[]; belege: Zeile[]; termine: Zeile[]; ereignisse: Zeile[]; dokumente?: Zeile[];
 };
 
 export type Akte = {
@@ -108,7 +112,8 @@ export function akteAus(r: Rohdaten): Akte {
     belege: r.belege.filter(aktiv).map((z) => ausZeile('belege', z)),
     fristen,
     ereignisse,
-    dokumente: [], schadenfaelle: [], zaehler: [], // folgen in späteren Schritten
+    dokumente: (r.dokumente ?? []).filter(aktiv).map((z) => ausZeile('dokumente', z)),
+    schadenfaelle: [], zaehler: [], // folgen in späteren Schritten
     einst: (r.haushalt?.einstellungen as Record<string, unknown>) ?? {},
   };
 }
