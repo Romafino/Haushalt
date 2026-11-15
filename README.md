@@ -26,7 +26,7 @@ sudo -u postgres createdb -O haushalt_test haushalt_test
 
 ## Supabase-Projekt einrichten
 
-1. Projekt in Region Frankfurt (eu-central-1) anlegen, Plan Free.
+1. Projekt in Region West EU (Irland, eu-west-1) anlegen, Plan Free. Nicht die Sammeloption „Europe“ wählen.
 2. Migrationen aus `supabase/migrations` der Reihe nach im SQL-Editor ausführen (oder Supabase CLI).
 3. Unter Authentication die freie Registrierung abschalten [prüfen: genaue Bezeichnung der Einstellung].
 4. Zwei Zugänge (Vater, Mutter) im Dashboard anlegen. Ein Elternteil legt in der App den Haushalt an

@@ -34,7 +34,7 @@ Oberfläche: mobil zuerst (iPhone), außerdem Mac. Deutsch, ruhig und übersicht
 6. **Nicht gespeichert werden** Vertrags-, Kunden-, Versicherungs-, Schaden- und Rechnungsnummern, IBAN, Geburtsdaten, Ausweisdaten.
 7. **Freitext** (Fragen, Schadenbeschreibung) wird vor dem Senden ebenfalls gegen die Schwärzliste ersetzt.
 8. **Zweite Prüfung:** Jede KI-Antwort wird auf dem Gerät gegen die entschlüsselte Schwärzliste geprüft. Taucht ein Eintrag auf, warnt die App (dann hat die KI etwas Ungeschwärztes gesehen).
-9. **Server und Datenbank in der EU** (Supabase Frankfurt, Vercel-Funktionen in EU-Region [prüfen]).
+9. **Server und Datenbank in der EU** (**Entschieden (15.11.2026):** Supabase Irland/eu-west-1, da Frankfurt beim Anlegen nicht angeboten wurde; Vercel-Funktionen ebenfalls in Irland/Dublin [prüfen: Regionsbezeichnung]. Nicht die Sammeloption „Europe“ wählen, sie umfasst auch London und Zürich).
 10. **Keine Rechts-, Steuer- oder Abschlussberatung**, keine Abschluss- oder Kündigungsempfehlung. „Nicht gefunden“ heißt „unklar“, nie „nicht versichert“. Immer Quelle nennen.
 
 ## 4. Umfang
@@ -76,7 +76,7 @@ Oberfläche: mobil zuerst (iPhone), außerdem Mac. Deutsch, ruhig und übersicht
  └─ Web-Push-Versand
           │
           ▼
- Supabase (Frankfurt)
+ Supabase (Irland, eu-west-1)
  ├─ Auth (2 Personen, 1 Haushalt)
  ├─ Postgres mit Row Level Security, Volltextsuche (deutsch)
  └─ Storage: geschwärzte Bilder, Schadenfotos
@@ -223,7 +223,7 @@ Fehlerfälle: kein Netz → Entwurf auf dem Gerät; KI nicht erreichbar oder Lim
 
 ## 12. Vorgeschlagene Reihenfolge der Umsetzung
 
-1. Repository, Next.js-Gerüst, Supabase-Projekt (Frankfurt), Auth, Haushalt + Mitglieder, RLS-Grundregel mit Tests.
+1. Repository, Next.js-Gerüst, Supabase-Projekt (Irland), Auth, Haushalt + Mitglieder, RLS-Grundregel mit Tests.
 2. Regeln übernehmen: `logic.js` → TypeScript-Modul, alle Tests portieren und grün.
 3. Tabellen der Akte + Oberfläche: Startseite („Jetzt wichtig“, Bereiche, Fixkosten, §35a), Listen, Detailseiten, Formulare.
 4. Ereignisse mit Folgen, Fassungen, täglicher Lauf.
