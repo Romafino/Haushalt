@@ -7,7 +7,8 @@ export type KiErgebnis = { text: string; ein: number; aus: number; denken: numbe
 export interface KiAnbieter {
   name: string;
   modell: string;
-  auslesen(prompt: string, bilder: Bild[]): Promise<KiErgebnis>;
+  /** json: Antwort als JSON verlangen (Standard: Einstellung des Anbieters, sonst ja). */
+  auslesen(prompt: string, bilder: Bild[], opt?: { json?: boolean }): Promise<KiErgebnis>;
   modelle(): Promise<string[]>;
 }
 
@@ -55,9 +56,9 @@ export function gemini(schluessel: string, modell: string, abrufen: typeof fetch
     name: 'gemini',
     modell,
     mitModell: (m: string) => gemini(schluessel, m, abrufen, opt),
-    async auslesen(prompt, bilder) {
+    async auslesen(prompt, bilder, o) {
       const r = await abrufen(`${GEMINI}/models/${encodeURIComponent(modell)}:generateContent`, {
-        method: 'POST', headers: kopf, body: JSON.stringify(geminiAnfrage(prompt, bilder, opt.json ?? true)), signal: AbortSignal.timeout(opt.timeoutMs ?? 55000),
+        method: 'POST', headers: kopf, body: JSON.stringify(geminiAnfrage(prompt, bilder, o?.json ?? opt.json ?? true)), signal: AbortSignal.timeout(opt.timeoutMs ?? 55000),
       });
       if (r.status === 429) throw new KiFehler('kontingent', 'Das Kontingent der KI ist gerade ausgeschöpft. Bitte später erneut versuchen.', await googleFehler(r));
       if (r.status === 404) throw new KiFehler('modell', `Das KI-Modell „${modell}“ ist mit diesem Schlüssel nicht nutzbar. Bitte in Vercel GEMINI_MODELL ändern (Test: /api/ki/test).`, await googleFehler(r));
