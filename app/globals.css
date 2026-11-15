@@ -109,3 +109,10 @@ label.inline { display: flex; align-items: center; gap: 0.5rem; }
 label.inline select { width: auto; }
 .seitentext { white-space: pre-wrap; font-size: 0.85rem; background: var(--hintergrund); padding: 0.6rem; border-radius: 8px; max-height: 20rem; overflow: auto; }
 .seitenbild { width: 100%; border: 1px solid var(--linie); border-radius: 8px; }
+
+/* Startseite: Fragefeld und Hauptaktionen */
+.fragefeld .zeile input { flex: 1; min-width: 0; }
+.fragefeld label h2 { color: var(--text); }
+.aktionen { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+a.knopf.gross { justify-content: center; min-height: 52px; text-align: center; }
+a.knopf.zweitrangig { background: var(--flaeche); color: var(--akzent); border: 1px solid var(--linie); }
