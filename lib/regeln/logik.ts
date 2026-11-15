@@ -440,7 +440,8 @@ function schadenErgebnis(policen: any, roh: any) {
 }
 
 /* ---------- Kalender, Export, Sicherung (Stufe e) ---------- */
-const icsEsc = (t: any) => String(t == null ? '' : t).replace(/\\/g, '\\\\').replace(/;/g, '\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
+/* Bewusst geändert gegenüber dem Altbestand: „;“ wird als „\;“ maskiert (RFC 5545); vorher blieb es unmaskiert. */
+const icsEsc = (t: any) => String(t == null ? '' : t).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
 const icsFalten = (z: any) => { const out: any[] = []; let r = z; while (r.length > 73) { out.push(r.slice(0, 73)); r = ' ' + r.slice(73); } out.push(r); return out.join('\r\n'); };
 /* Kalenderdatei: ganztägige Termine mit Alarm um 9 Uhr am Tag; Kündigungsfristen zusätzlich mit Vorwarnung. */
 function icsText(liste: any, vorlauf: any, stempel: any) {
