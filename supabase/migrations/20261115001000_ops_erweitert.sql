@@ -74,3 +74,9 @@ begin
   return n;
 end;
 $$;
+
+-- Dokument und neu angelegter Vertrag/Firma/Ding entstehen in derselben Transaktion (dokument_speichern):
+-- die Verweise des Dokuments werden erst am Ende der Transaktion geprüft (weiterhin geprüft, nur später).
+alter table public.dokumente alter constraint dokumente_haushalt_id_vertrag_id_fkey deferrable initially deferred;
+alter table public.dokumente alter constraint dokumente_haushalt_id_ding_id_fkey deferrable initially deferred;
+alter table public.dokumente alter constraint dokumente_haushalt_id_firma_id_fkey deferrable initially deferred;
