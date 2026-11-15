@@ -84,6 +84,12 @@ describe('Anschriftenfeld ohne Schwärzliste', () => {
       .toEqual([{ index: 2, label: '[Name]' }, { index: 3, label: '[Adresse]' }, { index: 4, label: '[Adresse]' }]);
     expect(anschriftZeilen(['Frau', 'Erika Mustermann', 'Am Hang 12 a', 'Sehr geehrte Frau'])).toEqual([{ index: 1, label: '[Name]' }, { index: 2, label: '[Adresse]' }]);
     expect(anschriftZeilen(['Herrn Dr. Max Beispiel', 'Musterweg 5'])).toEqual([]);
+    // ohne Anrede: Straße direkt über PLZ/Ort
+    expect(anschriftZeilen(['Beispiel Versicherung AG', '[Name]', 'Musterweg 5', '12345 Musterstadt', 'Versicherungsschein']))
+      .toEqual([{ index: 2, label: '[Adresse]' }, { index: 3, label: '[Adresse]' }]);
+    // eine Straße allein oder Absenderzeile mit Punkten bleibt
+    expect(anschriftZeilen(['Musterweg 5', 'Versicherungsschein'])).toEqual([]);
+    expect(anschriftZeilen(['Musterallee 1 · 10115 Beispielstadt', 'Herrn'])).toEqual([]);
   });
   it('Balken und Text: Anschrift im Bild und im gespeicherten Text ersetzt', () => {
     x = 0;

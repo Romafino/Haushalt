@@ -52,7 +52,8 @@ export function musterBereiche(text: string): { start: number; ende: number; lab
   return out;
 }
 
-/* Anschriftenfeld: Zeile nur „Herrn/Frau/Familie/Eheleute“ → nächste Zeile Name, danach Straße/Ort als Adresse. */
+/* Anschriftenfeld: Zeile nur „Herrn/Frau/Familie/Eheleute“ → nächste Zeile Name, danach Straße/Ort als Adresse.
+   Zusätzlich: Straße + darunter „PLZ Ort“ → beide Adresse (auch wenn die Anrede fehlt oder schon geschwärzt ist). */
 const ANREDE_ZEILE = /^(herrn?|frau|familie|eheleute)$/i;
 const STRASSE = /^[A-ZÄÖÜ][^\d]{2,}\s\d{1,4}\s?[a-zA-Z]?(\s*[-/]\s*\d{1,4}[a-zA-Z]?)?$/;
 const PLZ_ORT = /^\d{5}\s+[A-ZÄÖÜ]/;
@@ -65,6 +66,11 @@ export function anschriftZeilen(zeilenTexte: string[]): { index: number; label: 
       const z = zeilenTexte[j].trim();
       if (STRASSE.test(z) || PLZ_ORT.test(z)) out.push({ index: j, label: '[Adresse]' }); else break;
     }
+  });
+  // auch ohne Anrede: Straßenzeile direkt über „PLZ Ort“ ist eine Anschrift
+  zeilenTexte.forEach((t, i) => {
+    if (i + 1 >= zeilenTexte.length || !STRASSE.test(t.trim()) || !PLZ_ORT.test(zeilenTexte[i + 1].trim())) return;
+    for (const index of [i, i + 1]) if (!out.some((o) => o.index === index)) out.push({ index, label: '[Adresse]' });
   });
   return out;
 }
