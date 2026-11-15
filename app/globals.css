@@ -68,3 +68,30 @@ button:disabled { opacity: 0.6; cursor: default; }
 .kachel { background: var(--flaeche); border: 1px solid var(--linie); border-radius: var(--radius); padding: 0.8rem 0.6rem; display: grid; gap: 0.1rem; text-align: center; }
 .kachel .zahl { font-size: 1.4rem; font-weight: 650; }
 details.karte summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; align-items: center; }
+
+/* Akte: Listen, Formulare, Navigation */
+a.kachel { color: inherit; text-decoration: none; }
+a.kachel:active { opacity: 0.7; }
+.kopf a, .schnell a, a.leise { color: var(--akzent); text-decoration: none; }
+.kopf { min-height: 44px; display: flex; align-items: center; }
+.schnell { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; }
+.schnell a { min-height: 44px; display: inline-flex; align-items: center; }
+.verweis { display: grid; gap: 0.15rem; color: inherit; text-decoration: none; }
+.verweis.leise { color: var(--leise); }
+a.knopf { background: var(--akzent); color: var(--akzent-text); border-radius: 10px; padding: 0.6rem 1rem; min-height: 44px; display: inline-flex; align-items: center; font-weight: 600; text-decoration: none; }
+button.klein { min-height: 36px; padding: 0.3rem 0.8rem; font-size: 0.9rem; justify-self: start; margin-top: 0.3rem; }
+button.gefahr { background: transparent; color: var(--fehler); border-color: var(--fehler); }
+.knoepfe { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.formular fieldset { border: none; display: grid; gap: 0.75rem; padding: 0; margin: 0 0 0.5rem; }
+.formular legend { font-weight: 600; margin-bottom: 0.5rem; color: var(--text); }
+select, textarea { font: inherit; color: var(--text); background: var(--hintergrund); border: 1px solid var(--linie); border-radius: 10px; padding: 0.7rem 0.8rem; min-height: 44px; width: 100%; }
+select:focus, textarea:focus { outline: 2px solid var(--akzent); outline-offset: 1px; }
+input, select, textarea { width: 100%; }
+input[aria-invalid="true"], select[aria-invalid="true"], textarea[aria-invalid="true"] { border-color: var(--fehler); }
+label.janein { display: flex; align-items: center; gap: 0.6rem; color: var(--text); min-height: 44px; }
+label.janein input { width: 1.3rem; height: 1.3rem; min-height: 0; accent-color: var(--akzent); }
+.mehrfach { display: grid; gap: 0.4rem; color: var(--leise); font-size: 0.95rem; }
+.chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.chip { background: transparent; color: var(--text); border: 1px solid var(--linie); font-weight: 500; min-height: 40px; padding: 0.4rem 0.8rem; border-radius: 999px; }
+.chip.an { background: var(--akzent); color: var(--akzent-text); border-color: var(--akzent); }
+details summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; color: var(--akzent); }

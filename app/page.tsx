@@ -85,7 +85,7 @@ export default function Start() {
       )}
 
       {h && !akte && !fehler && <p className="leise">Akte wird geladen …</p>}
-      {h && akte && <Uebersicht akte={akte} />}
+      {h && akte && <Uebersicht akte={akte} haushaltId={h.id} onGeaendert={laden} />}
 
       {h && (
         <details className="karte">
