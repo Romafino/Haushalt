@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Haushalts-App</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="bar">
+  <button type="button" id="back" class="iconbtn" aria-label="Zurück" hidden>‹</button>
+  <h1 id="title">Haushalt</h1>
+  <button type="button" id="gear" class="iconbtn" aria-label="Einstellungen">Einstellungen</button>
+</header>
+<main id="main"><p class="note">Daten werden geladen …</p></main>
+<div id="toast" role="status" aria-live="polite" hidden></div>
+<script src="logic.js"></script>
+<script src="app.js"></script>
+<script src="doc.js"></script>
+<script src="ev.js"></script>
+<script src="ask.js"></script>
+<script src="exp.js"></script>
+<script src="mehr.js"></script>
+</body>
+</html>
