@@ -87,4 +87,4 @@ function listeAusText(inhalt: any) {
 }
 
 
-export { IBAN_RE, GEB_RE, schwaerzen, anonymisieren, dekodiere, listeAusText };
+export { IBAN_RE, GEB_RE, NR_RE, NR_BLEIBT, NR_NACKT, ANREDE_RE, schwaerzen, anonymisieren, dekodiere, listeAusText };

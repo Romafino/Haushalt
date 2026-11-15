@@ -1,0 +1,135 @@
+"use client";
+/* Dokument aufnehmen: Foto/PDF → auf dem Gerät lesen → automatisch schwärzen → prüfen → nur die geschwärzte Fassung speichern. */
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { Kopf } from "@/components/akte/kopf";
+import { SeitenEditor } from "@/components/dokument/editor";
+import { useSchwaerzliste } from "@/components/schwaerzliste/kontext";
+import { useAkte } from "@/lib/akte/useAkte";
+import { dateienLaden, erkennen, type Seite } from "@/lib/geraet/seiten";
+import { dokumentSpeichern } from "@/lib/geraet/speichern";
+import { autoBalken, seitenText } from "@/lib/schwaerzen/seitentext";
+import { freitextPruefen } from "@/lib/akte/freitext";
+import * as R from "@/lib/regeln";
+
+export default function DokumentNeu() {
+  const router = useRouter();
+  const sl = useSchwaerzliste();
+  const { akte, haushaltId } = useAkte();
+  const [seiten, setSeiten] = useState<Seite[] | null>(null);
+  const [quelle, setQuelle] = useState<"pdf" | "foto">("foto");
+  const [aktiv, setAktiv] = useState(0);
+  const [status, setStatus] = useState("");
+  const [fehler, setFehler] = useState("");
+  const [meta, setMeta] = useState<Record<string, string>>({ typ: "Brief", titel: "", datum: "", gueltigVon: "", gueltigBis: "", vertragId: "", dingId: "", firmaId: "" });
+  const eingabe = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    // Zustand der Schwärzliste prüfen (lädt nur den verschlüsselten Block).
+    if (sl.zustand === "unbekannt") void sl.pruefen();
+  }, [sl]);
+
+  const labels = useMemo(() => Array.from(new Set([...sl.liste.map((e) => e.ersatz), "[Name]", "[Adresse]", "[Nummer]", "[geschwärzt]"])), [sl.liste]);
+
+  async function laden(files: FileList | null) {
+    if (!files?.length) return;
+    setFehler(""); setSeiten(null); setAktiv(0);
+    try {
+      const r = await dateienLaden(Array.from(files), setStatus);
+      try { await erkennen(r.seiten, setStatus); }
+      catch { setFehler("Die Texterkennung lief hier nicht. Bitte die Seiten von Hand schwärzen; der Text bleibt dann leer."); }
+      setQuelle(r.quelle);
+      setSeiten(r.seiten.map((x) => ({ ...x, balken: x.stuecke ? autoBalken(x.stuecke, sl.liste) : [] })));
+    } catch (e) {
+      setFehler("Die Datei konnte nicht geöffnet werden: " + (e instanceof Error ? e.message : String(e)));
+    }
+    setStatus("");
+  }
+
+  async function speichern(e: FormEvent) {
+    e.preventDefault();
+    if (!seiten || !haushaltId) return;
+    const t = freitextPruefen(meta.titel, "streng");
+    if (t) return setFehler("Titel: " + t);
+    setFehler("");
+    try {
+      const m: Record<string, unknown> = Object.fromEntries(Object.entries(meta).map(([k, v]) => [k, v || null]));
+      const id = await dokumentSpeichern({ haushaltId, meta: m, seiten, quelle, liste: sl.liste, status: setStatus });
+      router.replace(`/dokumente/${id}`);
+    } catch (e2) {
+      setFehler(e2 instanceof Error ? e2.message : "Speichern hat nicht geklappt.");
+    }
+    setStatus("");
+  }
+
+  if (sl.zustand !== "offen") {
+    return (
+      <main className="seite">
+        <Kopf zurueck="/dokumente" text="Dokumente" />
+        <h1>Dokument aufnehmen</h1>
+        <section className="karte">
+          <p>{sl.zustand === "keine" ? "Bitte zuerst die Schwärzliste anlegen." : sl.zustand === "gesperrt" ? "Bitte zuerst die Schwärzliste entsperren." : "Schwärzliste wird geprüft …"}</p>
+          <p className="leise">Ohne Schwärzliste würden Namen und Anschrift nicht automatisch geschwärzt.</p>
+          {(sl.zustand === "keine" || sl.zustand === "gesperrt") && <Link className="knopf" href="/schwaerzliste">Zur Schwärzliste</Link>}
+        </section>
+      </main>
+    );
+  }
+
+  const s = seiten?.[aktiv];
+  const anzahl = seiten?.reduce((n, x) => n + x.balken.length, 0) ?? 0;
+  return (
+    <main className="seite">
+      <Kopf zurueck="/dokumente" text="Dokumente" />
+      <h1>Dokument aufnehmen</h1>
+      <section className="karte">
+        <p className="leise">Fotos oder ein PDF. Alles wird auf diesem Gerät gelesen und geschwärzt; gespeichert wird nur die geschwärzte Fassung.</p>
+        <input ref={eingabe} type="file" accept="application/pdf,image/*" multiple onChange={(e) => laden(e.target.files)} />
+        {status && <p className="leise" role="status">{status}</p>}
+        {fehler && <p className="fehler" role="alert">{fehler}</p>}
+      </section>
+
+      {seiten && s && (
+        <>
+          <section className="karte">
+            <div className="zeile">
+              <h2>Seite {aktiv + 1} von {seiten.length}</h2>
+              <span className="marke">{anzahl} Balken</span>
+            </div>
+            {seiten.length > 1 && (
+              <div className="knoepfe">
+                <button type="button" className="zweitrangig" disabled={aktiv === 0} onClick={() => setAktiv(aktiv - 1)}>← Zurück</button>
+                <button type="button" className="zweitrangig" disabled={aktiv === seiten.length - 1} onClick={() => setAktiv(aktiv + 1)}>Weiter →</button>
+              </div>
+            )}
+            <SeitenEditor key={aktiv} seite={s} labels={labels} setBalken={(l) => setSeiten(seiten.map((x, i) => (i === aktiv ? { ...x, balken: l } : x)))} />
+            <details>
+              <summary>Text dieser Seite (so wird er gespeichert)</summary>
+              <pre className="seitentext">{seitenText(s.stuecke, s.balken, sl.liste) || "(kein Text erkannt)"}</pre>
+            </details>
+            <p className="leise">Bitte jede Seite prüfen: Namen, Anschrift, Unterschrift, Nummern. Fehlt ein Balken, „Balken ziehen“.</p>
+          </section>
+
+          <form className="karte formular" onSubmit={speichern}>
+            <h2>Angaben</h2>
+            <label>Art<select value={meta.typ} onChange={(e) => setMeta({ ...meta, typ: e.target.value })}>{R.ENUM.typ.map((t) => <option key={t}>{t}</option>)}</select></label>
+            <label>Titel<input value={meta.titel} maxLength={200} onChange={(e) => setMeta({ ...meta, titel: e.target.value })} placeholder="z. B. Hausrat Police 2026" /></label>
+            <label>Datum des Dokuments<input type="date" value={meta.datum} onChange={(e) => setMeta({ ...meta, datum: e.target.value })} /></label>
+            <label>Gültig von<input type="date" value={meta.gueltigVon} onChange={(e) => setMeta({ ...meta, gueltigVon: e.target.value })} /></label>
+            <label>Gültig bis<input type="date" value={meta.gueltigBis} onChange={(e) => setMeta({ ...meta, gueltigBis: e.target.value })} /></label>
+            {akte && (
+              <>
+                <label>Vertrag<select value={meta.vertragId} onChange={(e) => setMeta({ ...meta, vertragId: e.target.value })}><option value="">–</option>{akte.vertraege.map((v) => <option key={v.id} value={v.id}>{String(v.kurzname)}</option>)}</select></label>
+                <label>Ding<select value={meta.dingId} onChange={(e) => setMeta({ ...meta, dingId: e.target.value })}><option value="">–</option>{akte.dinge.map((d) => <option key={d.id} value={d.id}>{String(d.name)}</option>)}</select></label>
+                <label>Firma<select value={meta.firmaId} onChange={(e) => setMeta({ ...meta, firmaId: e.target.value })}><option value="">–</option>{akte.firmen.map((f) => <option key={f.id} value={f.id}>{String(f.name)}</option>)}</select></label>
+              </>
+            )}
+            <p className="leise">Das Auslesen per KI (Felder automatisch ausfüllen, Steckbrief) kommt im nächsten Schritt.</p>
+            <button type="submit" disabled={!!status}>Geschwärzt speichern</button>
+          </form>
+        </>
+      )}
+    </main>
+  );
+}

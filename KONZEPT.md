@@ -70,7 +70,7 @@ Oberfläche: mobil zuerst (iPhone), außerdem Mac. Deutsch, ruhig und übersicht
           │  nur geschwärzte Inhalte
           ▼
  Server (Next.js Route Handlers auf Vercel, EU)
- ├─ KI-Schicht: Anbieter austauschbar (z. B. Vercel AI SDK), zunächst nur Claude
+ ├─ KI-Schicht: Anbieter austauschbar; Start mit Gemini (entschieden 15.11.2026), Claude bleibt möglich
  ├─ Kalender-Abo (.ics mit geheimem Schlüssel)
  ├─ täglicher Lauf (Vercel Cron): Fristen nachziehen, Push versenden
  └─ Web-Push-Versand
@@ -201,6 +201,7 @@ Fehlerfälle: kein Netz → Entwurf auf dem Gerät; KI nicht erreichbar oder Lim
 | Vercel | Hosting, Cron | Hobby kostenlos, nur nicht-kommerziell/persönlich; Cron einmal täglich, Zeitpunkt innerhalb der Stunde |
 | Anthropic Console | Claude-API | Abrechnung je Nutzung, getrennt vom Claude-Abo [Preise prüfen] |
 | weitere KI-Anbieter | optional | eigene Konten; Bedingungen zu Speicherung/Training je Anbieter prüfen |
+| Google Gemini API | KI (Start) | **Entschieden (15.11.2026):** Start mit Gemini. Freikontingent nur für Tests mit erfundenen Dokumenten; für echte Dokumente Google-Cloud-Projekt mit aktivem Zahlungskonto (laut Bedingungen für Nutzer in der EU nur bezahlte Dienste; Datennutzung ohne Training) [prüfen: aktuelle Bedingungen und Preise] |
 
 **Entschieden (15.11.2026):** Entwicklung mit erfundenen Daten auf Supabase Free. Free oder Pro wird vor dem Umzug echter Daten entschieden.
 
@@ -212,6 +213,8 @@ Fehlerfälle: kein Netz → Entwurf auf dem Gerät; KI nicht erreichbar oder Lim
 - Zeitpunkt des Umstiegs und Parallelbetrieb noch festlegen.
 
 ## 11. Offene Punkte
+
+0. Hinweis Umsetzung: Schritt 6 (Schwärzliste) wurde vor Schritt 5 gezogen, damit beim Dokumenten-Upload Namen automatisch geschwärzt werden. Deutsche Volltextsuche zerlegt keine Komposita (z. B. findet „Einbruch“ nicht „Einbruchdiebstahl“) → in Schritt 8 berücksichtigen.
 
 1. Umzug: Zeitpunkt und Parallelbetrieb (in Schritt 9). Originale werden nicht übernommen (entschieden).
 2. ~~Kaskade beim endgültigen Löschen~~ → entschieden (Abschnitt 6).
