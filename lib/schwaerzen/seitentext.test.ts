@@ -47,6 +47,8 @@ describe('nummernTreffer', () => {
     expect(nummern('Kunde 4711 0815 12, geb. am 3. 5. 1970')).toEqual(['4711 0815 12']);
     expect(nummern('Schadenhotline: 0800 111 2222, Fax 0800 111 3333')).toEqual([]);
     expect(nummern('Rechnung RE-2026-004711')).toEqual(['2026-004711']);
+    expect(nummern('Versicherungssumme 65.000 €, Haftpflicht 10.000.000 EUR')).toEqual([]);
+    expect(musterBereiche('Versicherungsschein-Nr.: 12.345.678').map((x) => x.label)).toEqual(['[Nummer]']);
   });
 });
 
