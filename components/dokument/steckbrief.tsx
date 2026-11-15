@@ -9,7 +9,7 @@ export function SteckbriefListe({ sb }: { sb: unknown }) {
       {teile.map((a) => (
         <li key={a.titel} className="eintrag">
           <strong>{a.titel}</strong>
-          {a.zeilen.length === 1 ? <span className="leise">{a.zeilen[0]}</span> : <ul className="leise">{a.zeilen.map((z, i) => <li key={i}>{z}</li>)}</ul>}
+          {a.zeilen.length === 1 ? <span className="leise">{a.zeilen[0]}</span> : <ul className="leise punkte">{a.zeilen.map((z, i) => <li key={i}>{z}</li>)}</ul>}
         </li>
       ))}
     </ul>
