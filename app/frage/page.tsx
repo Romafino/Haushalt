@@ -75,13 +75,11 @@ export default function Frage() {
           <p className="antwort" style={{ whiteSpace: "pre-wrap" }}>{anzeige}</p>
           <p className="leise">
             Stand: {R.fmt(erg.stichtag)}{erg.stichtag === R.heute() ? " (heute, nur laufende Verträge)" : " (damals gültige Fassung)"}.
-            {" "}Gelesen: {gelesen.length ? "" : "nur Einträge und Steckbriefe."}
+            {" "}Gelesen:{" "}
+            {gelesen.length ? gelesen.map((g, i) => (
+              <span key={g.dokumentId}>{i > 0 && "; "}<Link href={`/dokumente/${g.dokumentId}`}>{g.titel}</Link> S. {g.seiten.join(", ")}</span>
+            )) : "nur Einträge und Steckbriefe"}.
           </p>
-          {gelesen.length > 0 && (
-            <ul className="liste">
-              {gelesen.map((g) => <li key={g.dokumentId}><Link href={`/dokumente/${g.dokumentId}`}>{g.titel}</Link> <span className="leise">S. {g.seiten.join(", ")}</span></li>)}
-            </ul>
-          )}
           <label className="janein"><input type="checkbox" checked={namen} onChange={(e) => setNamen(e.target.checked)} /><span>Namen statt Platzhalter anzeigen (nur auf diesem Gerät)</span></label>
           <button type="button" className="zweitrangig" onClick={async () => { try { await navigator.clipboard.writeText(anzeige); setKopiert(true); } catch { setKopiert(false); } }}>{kopiert ? "Kopiert" : "Text kopieren"}</button>
           <p className="leise">Kosten dieser Frage: {(erg.kostenCent / 100).toLocaleString("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 3 })}</p>
