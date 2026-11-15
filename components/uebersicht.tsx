@@ -1,6 +1,8 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
+import { frageMerken } from "@/lib/geraet/frage-entwurf";
 import type { Akte, Eintrag } from "@/lib/akte/abbilden";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 import * as R from "@/lib/regeln";
@@ -17,6 +19,16 @@ const wann = (f: Frist) =>
 export function Uebersicht({ akte: S, haushaltId, onGeaendert }: { akte: Akte; haushaltId: string; onGeaendert: () => Promise<void> }) {
   const heute: string = R.heute();
   const [fehler, setFehler] = useState("");
+  const router = useRouter();
+  const [frage, setFrage] = useState("");
+
+  // Frage nur auf dem Gerät weitergeben (nicht in der Adresse, sonst stünde sie in Server-Logs)
+  function fragen(e: FormEvent) {
+    e.preventDefault();
+    if (frage.trim().length < 3) return;
+    frageMerken(frage.trim());
+    router.push("/frage");
+  }
 
   async function erledigt(f: Frist) {
     setFehler("");
@@ -46,6 +58,19 @@ export function Uebersicht({ akte: S, haushaltId, onGeaendert }: { akte: Akte; h
 
   return (
     <>
+      <form className="karte fragefeld" onSubmit={fragen} role="search">
+        <label htmlFor="frage-start"><h2>Frag die Akte</h2></label>
+        <div className="zeile">
+          <input id="frage-start" type="search" enterKeyHint="search" value={frage} onChange={(e) => setFrage(e.target.value)} placeholder="z. B. Ist mein Fahrrad versichert?" maxLength={1000} />
+          <button type="submit" disabled={frage.trim().length < 3}>Fragen</button>
+        </div>
+      </form>
+
+      <div className="aktionen">
+        <Link href="/dokumente/neu" className="knopf gross">＋ Dokument aufnehmen</Link>
+        <Link href="/dokumente" className="knopf gross zweitrangig">Dokumente</Link>
+      </div>
+
       <section className="karte">
         <h2>Jetzt wichtig</h2>
         {wichtig.length === 0 ? (
@@ -79,8 +104,6 @@ export function Uebersicht({ akte: S, haushaltId, onGeaendert }: { akte: Akte; h
         ))}
       </section>
       <nav className="karte schnell" aria-label="Akte">
-        <Link href="/frage">Frag die Akte</Link>
-        <Link href="/dokumente">Dokumente</Link>
         <Link href="/akte/vertraege">Verträge</Link>
         <Link href="/akte/firmen">Firmen</Link>
         <Link href="/akte/dinge">Dinge</Link>

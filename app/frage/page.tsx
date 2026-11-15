@@ -2,12 +2,13 @@
 /* Frag die Akte: Frage → auf dem Gerät gegen die Schwärzliste ersetzen → Seiten suchen → KI antwortet mit Quellen.
    Namen werden erst hier in der Anzeige wieder eingesetzt; an die KI und auf den Server gehen nur Platzhalter. */
 import Link from "next/link";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Kopf } from "@/components/akte/kopf";
 import { useSchwaerzliste } from "@/components/schwaerzliste/kontext";
 import { useAkte } from "@/lib/akte/useAkte";
 import { fragen, type FrageErgebnis } from "@/lib/geraet/frage";
 import { zurueckuebersetzen } from "@/lib/ki/frage";
+import { frageHolen } from "@/lib/geraet/frage-entwurf";
 import * as R from "@/lib/regeln";
 
 export default function Frage() {
@@ -24,18 +25,34 @@ export default function Frage() {
     if (sl.zustand === "unbekannt") void sl.pruefen();
   }, [sl]);
 
-  async function absenden(e: FormEvent) {
-    e.preventDefault();
+  async function starten(text: string) {
     if (!akte || !haushaltId || status) return;
-    if (frage.trim().length < 3) return setFehler("Bitte eine Frage eingeben.");
+    if (text.trim().length < 3) return setFehler("Bitte eine Frage eingeben.");
     setFehler(""); setErg(null); setKopiert(false);
     try {
-      setErg(await fragen(haushaltId, frage, sl.liste, akte, setStatus));
+      setErg(await fragen(haushaltId, text, sl.liste, akte, setStatus));
     } catch (err) {
       setFehler(err instanceof Error ? err.message : "Das hat nicht geklappt.");
     }
     setStatus("");
   }
+  function absenden(e: FormEvent) {
+    e.preventDefault();
+    void starten(frage);
+  }
+
+  // Frage von der Startseite: erst übernehmen, wenn Schwärzliste offen und Akte geladen ist (sonst bleibt sie gemerkt)
+  const uebernommen = useRef(false);
+  useEffect(() => {
+    if (uebernommen.current || sl.zustand !== "offen" || !akte || !haushaltId) return;
+    uebernommen.current = true;
+    const t = frageHolen();
+    if (!t) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setFrage(t);
+    void starten(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sl.zustand, akte, haushaltId]);
 
   if (sl.zustand !== "offen") {
     return (
