@@ -163,6 +163,22 @@ describe("mitglieder", () => {
 });
 
 describe("Funktionen", () => {
+  it("ist_mitglied liegt nicht im öffentlichen Schema (nicht per /rest/v1/rpc aufrufbar)", async () => {
+    const r = await db.query("select n.nspname from pg_proc p join pg_namespace n on n.oid = p.pronamespace where p.proname = 'ist_mitglied'");
+    expect(r.rows.map((x) => x.nspname)).toEqual(["privat"]);
+  });
+
+  it("anonym: kein Zugriff auf das Schema privat", async () => {
+    await als(db, "anon", async (q) => {
+      expect(await verweigert(q("select privat.ist_mitglied($1)", [hausA]))).toBe(true);
+    });
+  });
+
+  it("jede SECURITY-DEFINER-Funktion im Schema public ist bewusst freigegeben", async () => {
+    const r = await db.query("select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.prosecdef order by 1");
+    expect(r.rows.map((x) => x.proname)).toEqual(["haushalt_anlegen", "mitglied_hinzufuegen"]);
+  });
+
   it("haushalt_anlegen trägt den Aufrufer als einziges Mitglied ein", async () => {
     await als(db, fremd, async (q) => {
       const id = (await q("select public.haushalt_anlegen('Neu') as id")).rows[0].id;
@@ -201,7 +217,7 @@ describe("Funktionen", () => {
   });
 
   it("ist_mitglied verrät über fremde Haushalte nur 'nein'", async () => {
-    const r = await als(db, fremd, (q) => q("select public.ist_mitglied($1) as a, public.ist_mitglied($2) as b", [hausA, hausB]));
+    const r = await als(db, fremd, (q) => q("select privat.ist_mitglied($1) as a, privat.ist_mitglied($2) as b", [hausA, hausB]));
     expect([r.rows[0].a, r.rows[0].b]).toEqual([false, true]);
   });
 });
