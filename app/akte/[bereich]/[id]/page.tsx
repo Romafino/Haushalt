@@ -3,8 +3,10 @@ import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 
-import { useAkte, speichern, vertragSpeichern, verwerfen, endgueltigLoeschen } from "@/lib/akte/useAkte";
-import type { Akte, Eintrag } from "@/lib/akte/abbilden";
+import { useAkte, speichern, vertragSpeichern, verwerfen, endgueltigLoeschen, opsAnwenden } from "@/lib/akte/useAkte";
+import { zuZeile, type Akte, type Eintrag } from "@/lib/akte/abbilden";
+import { opsUebersetzen } from "@/lib/akte/ops";
+import { EreignisEintragen, Kuendigungsentwurf } from "@/components/akte/ereignis";
 import * as R from "@/lib/regeln";
 import { BEREICHE, NEU } from "@/components/akte/definitionen";
 import { Formular, type Bezuege } from "@/components/akte/formular";
@@ -33,9 +35,17 @@ function Detail() {
   const eintrag = neu ? null : liste.find((x) => (bereich === "termine" ? x.dbId : x.id) === id) ?? null;
   const dbId = eintrag ? String(bereich === "termine" ? eintrag.dbId : eintrag.id) : null;
 
-  async function sichern(werte: Record<string, unknown>, bez?: Bezuege): Promise<string | null> {
+  async function sichern(werte: Record<string, unknown>, bez?: Bezuege): Promise<string | null | { hinweis: string }> {
     if (!haushaltId) return "Kein Haushalt geladen.";
     try {
+      // Ding ersetzt/verkauft: Status und Folgen (Prüftermine für verknüpfte Verträge) in einer Transaktion
+      const altStatus = String(eintrag?.status ?? "aktiv");
+      if (def.tabelle === "dinge" && eintrag && dbId && akte && altStatus === "aktiv" && (werte.status === "ersetzt" || werte.status === "verkauft")) {
+        const f = R.dingFolgen({ ...eintrag, ...werte, id: dbId }, altStatus, akte, R.heute());
+        await opsAnwenden(haushaltId, [{ art: "aendern", tabelle: "dinge", id: dbId, daten: zuZeile("dinge", werte) }, ...opsUebersetzen(f.ops, akte)]);
+        await neuLaden();
+        return f.hinweise.length ? { hinweis: f.hinweise.join(" ") } : null;
+      }
       const neueId = def.tabelle === "vertraege"
         ? await vertragSpeichern(haushaltId, dbId, werte, bez?.dinge ?? [], bez?.rollen ?? [])
         : await speichern(def.tabelle, haushaltId, dbId, werte);
@@ -72,6 +82,8 @@ function Detail() {
       {akte && !neu && !eintrag && <p className="fehler">Eintrag nicht gefunden (vielleicht verworfen).</p>}
 
       {akte && eintrag && def.tabelle === "vertraege" && <VertragInfo v={eintrag} S={akte} />}
+      {akte && eintrag && haushaltId && def.tabelle === "vertraege" && <EreignisEintragen key={String(eintrag.status) + String(eintrag.beitrag)} v={eintrag} S={akte} haushaltId={haushaltId} onGeaendert={neuLaden} />}
+      {akte && eintrag && def.tabelle === "vertraege" && <Kuendigungsentwurf v={eintrag} S={akte} />}
       {akte && eintrag && (def.tabelle === "dinge" || def.tabelle === "firmen") && <Bezogen e={eintrag} feld={def.tabelle === "dinge" ? "dingId" : "firmaId"} S={akte} />}
 
       {akte && (neu || eintrag) && (

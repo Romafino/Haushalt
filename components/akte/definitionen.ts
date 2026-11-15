@@ -17,12 +17,12 @@ export type Feld = {
 };
 
 const opt = (l: string[], texte: Record<string, string> = {}): Option[] => l.map((w) => ({ wert: w, text: texte[w] ?? w }));
-const ZAHLWEISE: Record<string, string> = {
+export const ZAHLWEISE: Record<string, string> = {
   monatlich: "monatlich", zweimonatlich: "alle 2 Monate", vierteljaehrlich: "vierteljährlich", halbjaehrlich: "halbjährlich",
   jaehrlich: "jährlich", woechentlich: "wöchentlich", vierzehntaegig: "alle 14 Tage", einmalig: "einmalig",
 };
 export const STATUS_VERTRAG: Record<string, string> = { angebot: "Angebot", aktiv: "aktiv", gekuendigt: "gekündigt", beendet: "beendet", ersetzt: "ersetzt" };
-const VERL: Record<string, string> = { "12m": "verlängert sich um 12 Monate", unbefristet: "danach unbefristet (jederzeit kündbar)", vertrag: "laut Vertrag" };
+export const VERL: Record<string, string> = { "12m": "verlängert sich um 12 Monate", unbefristet: "danach unbefristet (jederzeit kündbar)", vertrag: "laut Vertrag" };
 const STEUER: Record<string, string> = { "-": "keine", handwerker: "Handwerkerleistung (§ 35a)", haushaltsnah: "haushaltsnahe Dienstleistung (§ 35a)" };
 const GEW: Record<string, string> = { keine: "keine", kauf: "Kauf (2 Jahre ab Übergabe)", bauwerk: "Bauwerk (5 Jahre ab Abnahme)", wartung: "Wartung/Reparatur (2 Jahre) [prüfen]" };
 const DING_STATUS: Record<string, string> = { aktiv: "aktiv", ersetzt: "ersetzt", verkauft: "verkauft" };

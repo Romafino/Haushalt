@@ -1,8 +1,11 @@
 "use client";
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 import { ladeAkte } from "@/lib/akte/laden";
+import { opsUebersetzen } from "@/lib/akte/ops";
+import { opsAnwenden } from "@/lib/akte/useAkte";
+import * as R from "@/lib/regeln";
 import type { Akte } from "@/lib/akte/abbilden";
 import { Uebersicht } from "@/components/uebersicht";
 
@@ -15,6 +18,8 @@ export default function Start() {
   const [email, setEmail] = useState("");
   const [meldung, setMeldung] = useState("");
   const [fehler, setFehler] = useState("");
+  const [nachgetragen, setNachgetragen] = useState<string[]>([]);
+  const wartungGelaufen = useRef(false);
 
   const laden = useCallback(async () => {
     const sb = supabaseBrowser();
@@ -23,7 +28,19 @@ export default function Start() {
     setHaushalte(data ?? []);
     if (data?.length) {
       try {
-        setAkte(await ladeAkte(sb, data[0].id));
+        let S = await ladeAkte(sb, data[0].id);
+        // Täglicher Lauf beim Öffnen (wie im Altbestand): Vertragsende eintragen, verpasste Fristen fortschreiben.
+        // Feste Schlüssel verhindern Doppel; läuft je Seitenaufruf höchstens einmal.
+        if (!wartungGelaufen.current) {
+          wartungGelaufen.current = true;
+          const ops = R.wartung(S, R.heute());
+          if (ops.length) {
+            await opsAnwenden(data[0].id, opsUebersetzen(ops, S));
+            setNachgetragen(ops.filter((o: { col: string }) => o.col === "ereignisse").map((o: { data: { text: string } }) => o.data.text));
+            S = await ladeAkte(sb, data[0].id);
+          }
+        }
+        setAkte(S);
       } catch {
         setFehler("Die Akte konnte nicht geladen werden.");
       }
@@ -85,6 +102,12 @@ export default function Start() {
       )}
 
       {h && !akte && !fehler && <p className="leise">Akte wird geladen …</p>}
+      {nachgetragen.length > 0 && (
+        <section className="karte" role="status">
+          <h2>Automatisch nachgetragen</h2>
+          <ul>{nachgetragen.map((t, i) => <li key={i} className="leise">{t}</li>)}</ul>
+        </section>
+      )}
       {h && akte && <Uebersicht akte={akte} haushaltId={h.id} onGeaendert={laden} />}
 
       {h && (

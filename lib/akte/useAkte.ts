@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 import { ladeAkte } from "./laden";
 import { zuZeile, type Akte, type Tabelle } from "./abbilden";
+import type { DbOp } from "./ops";
 
 export function useAkte() {
   const [haushaltId, setHaushaltId] = useState<string | null>(null);
@@ -49,6 +50,13 @@ export async function vertragSpeichern(haushaltId: string, id: string | null, we
   });
   if (error) throw new Error(lesbar(error.code));
   return data as string;
+}
+
+/** Schreib-Schritte des Regelmoduls (bereits übersetzt) in einer Transaktion anwenden. */
+export async function opsAnwenden(haushaltId: string, ops: DbOp[]): Promise<void> {
+  if (!ops.length) return;
+  const { error } = await supabaseBrowser().rpc("ops_anwenden", { p_haushalt_id: haushaltId, p_ops: ops });
+  if (error) throw new Error(lesbar(error.code));
 }
 
 /** Standard: verwerfen (wiederherstellbar). */
