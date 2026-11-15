@@ -1,5 +1,6 @@
 "use client";
 import { Suspense, useEffect, useState } from "react";
+import { SteckbriefListe } from "@/components/dokument/steckbrief";
 import { useParams, useRouter } from "next/navigation";
 import { Kopf } from "@/components/akte/kopf";
 import { useAkte, verwerfen } from "@/lib/akte/useAkte";
@@ -65,11 +66,7 @@ function Dokument() {
           {d.steckbrief != null && (
             <section className="karte">
               <h2>Steckbrief</h2>
-              <ul className="liste">
-                {Object.entries(d.steckbrief as Record<string, unknown>).map(([k, w]) => (
-                  <li key={k} className="eintrag"><strong>{k}</strong><span className="leise">{Array.isArray(w) ? w.map((x) => (typeof x === "string" ? x : Object.values(x as object).filter(Boolean).join(" · "))).join("; ") : String(w)}</span></li>
-                ))}
-              </ul>
+              <SteckbriefListe sb={d.steckbrief} />
               <p className="leise">Aus dem Dokument gelesen, ohne Gewähr. Maßgeblich sind die Bedingungen selbst.</p>
             </section>
           )}
