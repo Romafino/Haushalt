@@ -3,6 +3,7 @@
 import type { Akte } from "@/lib/akte/abbilden";
 import type { Auswahl, Vorschlag } from "@/lib/ki/uebernahme";
 import * as R from "@/lib/regeln";
+import { SteckbriefListe } from "@/components/dokument/steckbrief";
 import { VERL, ZAHLWEISE } from "@/components/akte/definitionen";
 
 const EREIGNIS: Record<string, string> = { nachtrag: "Nachtrag / Tarifwechsel", erhoehung: "Beitrags-/Preiserhöhung", kuendigung: "Kündigung versendet", bestaetigung: "Kündigung bestätigt" };
@@ -71,11 +72,7 @@ export function VorschlagPruefen({ v, a, setA, S }: { v: Vorschlag; a: Auswahl; 
       {sb && (
         <details>
           <summary>Steckbrief (wird am Dokument gespeichert)</summary>
-          <ul className="liste">
-            {Object.entries(sb).map(([k, w]) => (
-              <li key={k} className="eintrag"><strong>{k}</strong><span className="leise">{Array.isArray(w) ? w.map((x) => (typeof x === "string" ? x : Object.values(x as object).filter(Boolean).join(" · "))).join("; ") : String(w)}</span></li>
-            ))}
-          </ul>
+          <SteckbriefListe sb={sb} />
         </details>
       )}
       <p className="leise">Vorschlag ohne Gewähr. „Nicht gefunden“ heißt unklar, nicht „nicht versichert“. Keine Rechts- oder Steuerberatung.</p>
