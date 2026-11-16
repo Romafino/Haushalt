@@ -1,8 +1,9 @@
 "use client";
 import Link from "next/link";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { frageMerken } from "@/lib/geraet/frage-entwurf";
+import { notfallMerken } from "@/lib/geraet/schaden";
 import type { Akte, Eintrag } from "@/lib/akte/abbilden";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 import * as R from "@/lib/regeln";
@@ -20,6 +21,8 @@ export function Uebersicht({ akte: S, haushaltId, onGeaendert }: { akte: Akte; h
   const heute: string = R.heute();
   const [fehler, setFehler] = useState("");
   const router = useRouter();
+  // Notfallseite (offline) bei jedem Öffnen der Startseite aktuell halten
+  useEffect(() => { notfallMerken(S); }, [S]);
   const [frage, setFrage] = useState("");
 
   // Frage nur auf dem Gerät weitergeben (nicht in der Adresse, sonst stünde sie in Server-Logs)
@@ -114,6 +117,7 @@ export function Uebersicht({ akte: S, haushaltId, onGeaendert }: { akte: Akte; h
         <Link href="/kalender">Erinnerungen</Link>
         <Link href="/schwaerzliste">Schwärzliste</Link>
         <Link href="/sicherung">Datensicherung</Link>
+        <Link href="/notfallblatt">Notfallblatt</Link>
       </nav>
 
       <section className="karte">

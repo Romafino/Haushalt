@@ -266,6 +266,7 @@ Fehlerfälle: kein Netz → Entwurf auf dem Gerät; KI nicht erreichbar oder Lim
 - **Zweck:** Der andere Elternteil oder eine Vertrauensperson findet sich zurecht, wenn der Betreuer der App ausfällt.
 - **Ohne Nummern:** Dann ist es unkritisch und darf ausgedruckt im Ordner liegen. Eine Fassung mit Nummern gäbe es nur auf dem entsperrten Gerät.
 - Anmerkung: baut auf der vorhandenen Notfallseite (Sofortmaßnahmen, Hotlines, offline) auf; PDF über die Druckfunktion des Browsers.
+- **Umgesetzt (16.11.2026):** Seite „Notfallblatt“ (Drucken/PDF, ohne Beträge und Nummern; Nummern nur entsperrt, mit Warnung), Grundlage `notfallDaten()` aus dem Regelmodul plus Ablageort und nächste Frist; dieselbe Fassung ohne Nummern steht offline auf der Notfallseite und wird bei jedem Öffnen der Startseite aktualisiert.
 
 ### 13.3 Terminvorlagen
 

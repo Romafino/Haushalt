@@ -10,6 +10,7 @@ import { textSauber } from "@/lib/ki/antwort";
 import { pruefungAus, type Pruefung } from "@/lib/ki/schaden";
 import type { Akte } from "@/lib/akte/abbilden";
 import * as R from "@/lib/regeln";
+import { notfallblatt } from "@/lib/akte/notfallblatt";
 
 export type SchadenErfassung = { datum: string; titel: string; beschreibung: string; dingIds: string[] };
 
@@ -89,5 +90,7 @@ export function hotlinesAus(akte: Akte) {
   }).filter((h) => h.nummer);
 }
 export function notfallMerken(akte: Akte) {
-  try { localStorage.setItem("notfall", JSON.stringify({ sofort: R.sofortListe(akte.einst), hotlines: hotlinesAus(akte), stand: R.heute() })); } catch { /* ohne Speicher */ }
+  // ohne Beträge und ohne Nummern (Notfallblatt-Fassung für die Offline-Seite)
+  const blatt = notfallblatt(akte, R.heute());
+  try { localStorage.setItem("notfall", JSON.stringify({ sofort: R.sofortListe(akte.einst), hotlines: hotlinesAus(akte), stand: R.heute(), vertraege: [...blatt.versicherungen, ...blatt.vertraege].map((z) => ({ name: z.name, firma: z.firma, hotline: z.hotline, ablageort: z.ablageort, frist: z.frist })), fristen: blatt.fristen })); } catch { /* ohne Speicher */ }
 }
