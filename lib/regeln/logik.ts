@@ -1,6 +1,7 @@
 /* Übernommen aus altbestand/haushalts-app/logic.js (Haushalts-App: reine Rechenregeln, ohne KI, ohne Oberfläche).
    Verhalten unverändert; Typen zunächst grob (any), werden mit den Tabellen in Schritt 3 verfeinert. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { regel35a } from './stand';
 import { schwaerzen } from '../schwaerzen/text';
 
 const pad = (n: any) => String(n).padStart(2, '0');
@@ -99,13 +100,14 @@ function gewBis(b: any) {
 
 /* § 35a: nur Arbeitskosten, nur mit unbarer Zahlung. 20 %, Höchstbetrag je Art. */
 const MAX35A: Record<string, number> = { handwerker: 1200, haushaltsnah: 4000 };
+/* Bewusst erweitert (KONZEPT 13.7): Prozentsatz und Höchstbetrag kommen aus der Fassung des Steuerjahres (regel35a); für alle Jahre bisher 20 % und MAX35A. */
 function steuer35a(belege: any, jahr: any) {
-  const r: Record<string, any> = {};
+  const r: Record<string, any> = {}, f: any = regel35a(jahr);
   for (const art of Object.keys(MAX35A)) {
     const bs = belege.filter((b: any) => b.steuer === art && b.datum && b.datum.slice(0, 4) === String(jahr));
     const arbeit = bs.reduce((s: any, b: any) => s + (Number(b.arbeitskosten) || 0), 0);
     const anr = bs.filter((b: any) => b.unbar).reduce((s: any, b: any) => s + (Number(b.arbeitskosten) || 0), 0);
-    r[art] = { anzahl: bs.length, arbeit, anrechenbar: anr, bar: bs.filter((b: any) => !b.unbar).length, ermaessigung: Math.min(anr * 0.2, MAX35A[art]) };
+    r[art] = { anzahl: bs.length, arbeit, anrechenbar: anr, bar: bs.filter((b: any) => !b.unbar).length, ermaessigung: Math.min(anr * f.prozent[art] / 100, f.max[art]) };
   }
   return r;
 }
