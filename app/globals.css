@@ -119,3 +119,4 @@ a.knopf.zweitrangig { background: var(--flaeche); color: var(--akzent); border: 
 
 /* Aufzählung innerhalb einer Karte (z. B. Steckbrief) */
 .punkte { list-style: disc; padding-left: 1.2rem; display: grid; gap: 0.15rem; }
+a.knopf.notfall { grid-column: 1 / -1; background: var(--fehler); color: var(--hintergrund); }

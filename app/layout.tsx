@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { SchwaerzlisteAnbieter } from "@/components/schwaerzliste/kontext";
+import { SwAnmelden } from "@/components/sw-anmelden";
 
 export const metadata: Metadata = {
   title: "Haushalt",
@@ -25,6 +26,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="de">
       <body>
         <SchwaerzlisteAnbieter>{children}</SchwaerzlisteAnbieter>
+        <SwAnmelden />
       </body>
     </html>
   );

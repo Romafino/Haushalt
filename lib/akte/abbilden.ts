@@ -26,9 +26,9 @@ export const FELDER = {
   termine: {
     titel: 'titel', datum: 'datum', notiz: 'notiz', vorlaufTage: 'vorlauf_tage', wiederholung: 'wiederholung_monate', status: 'status',
     erledigtFuer: 'erledigt_fuer', abgeleitet: 'abgeleitet', quelle: 'quelle', vertragId: 'vertrag_id', dingId: 'ding_id', belegId: 'beleg_id',
-    kalDatum: 'kal_datum', kalAlt: 'kal_alt', kalTitel: 'kal_titel',
+    kalDatum: 'kal_datum', kalAlt: 'kal_alt', kalTitel: 'kal_titel', schadenId: 'schaden_id',
   },
-  ereignisse: { datum: 'datum', typ: 'typ', text: 'text', vertragId: 'vertrag_id', dingId: 'ding_id', dokumentId: 'dokument_id' },
+  ereignisse: { datum: 'datum', typ: 'typ', text: 'text', vertragId: 'vertrag_id', dingId: 'ding_id', dokumentId: 'dokument_id', schadenId: 'schaden_id' },
   dokumente: {
     typ: 'typ', titel: 'titel', datum: 'datum', gueltigVon: 'gueltig_von', gueltigBis: 'gueltig_bis', vertragId: 'vertrag_id', dingId: 'ding_id',
     firmaId: 'firma_id', seiten: 'seiten', quelle: 'quelle', datenschutz: 'datenschutz', steckbrief: 'steckbrief',
