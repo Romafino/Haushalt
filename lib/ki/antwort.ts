@@ -4,7 +4,7 @@
    3. Klartext-Sperre: Muster (IBAN, Nummern) dürfen auch in der Antwort nicht vorkommen */
 import * as R from '@/lib/regeln';
 import { IBAN_RE } from '@/lib/schwaerzen';
-import { nummernTreffer } from '@/lib/schwaerzen/seitentext';
+import { alteDaten, nummernTreffer } from '@/lib/schwaerzen/seitentext';
 
 export function jsonAus(text: string): unknown {
   const t = String(text ?? '').trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
@@ -26,10 +26,11 @@ export function vorschlagAus(roh: unknown, ids: Ids) {
 export function textSauber(s: string): string {
   let t = String(s ?? '').replace(new RegExp(IBAN_RE.source, 'g'), '[IBAN]');
   for (const x of nummernTreffer(t).reverse()) t = t.slice(0, x.start) + '[Nummer]' + t.slice(x.ende);
+  for (const x of alteDaten(t).reverse()) t = t.slice(0, x.start) + '[Datum]' + t.slice(x.ende);
   return t;
 }
 
 /** Server-seitige Sperre: Kommt geschwärzter Text an, darf er keine IBAN und keine langen Nummern mehr enthalten. */
 export function klartextVerdacht(texte: string[]): boolean {
-  return texte.some((t) => new RegExp(IBAN_RE.source).test(t) || nummernTreffer(t).length > 0);
+  return texte.some((t) => new RegExp(IBAN_RE.source).test(t) || nummernTreffer(t).length > 0 || alteDaten(t).length > 0);
 }

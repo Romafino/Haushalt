@@ -1,6 +1,6 @@
 /* Seitentext aus Wörtern und Balken. Erfundene Daten. */
 import { describe, expect, it } from 'vitest';
-import { anschriftZeilen, autoBalken, listenTreffer, musterBereiche, nummernTreffer, seitenText, type Stueck } from './seitentext';
+import { alteDaten, anschriftZeilen, autoBalken, listenTreffer, musterBereiche, nummernTreffer, seitenText, type Stueck } from './seitentext';
 
 const L = [{ text: 'Max Mustermann', ersatz: '[Vater]' }, { text: 'Musterweg 5', ersatz: '[Adresse]' }];
 // zwei Zeilen: "Herrn Max Mustermann" / "Vertrag 71206680 Beispielstadt"
@@ -117,5 +117,16 @@ describe('Anschriftenfeld ohne Schwärzliste', () => {
     expect(anschriftZeilen(['[Name]', 'Musterweg 5', '12345 Musterstadt', 'Tel. privat'])).toEqual([{ index: 1, label: '[Adresse]' }, { index: 2, label: '[Adresse]' }]);
     expect(anschriftZeilen(['Kundenbrief', '[Name]', 'Musterweg 5', '12345 Musterstadt', 'Versicherungsschein'])).toEqual([{ index: 2, label: '[Adresse]' }, { index: 3, label: '[Adresse]' }]);
     expect(anschriftZeilen(['Beispiel Versicherung AG · Postfach 1', 'Herrn', 'Max Mustermann', 'Musterweg 5', '12345 Musterstadt'])).toEqual([{ index: 2, label: '[Name]' }, { index: 3, label: '[Adresse]' }, { index: 4, label: '[Adresse]' }]);
+  });
+
+  it('Daten älter als 15 Jahre werden zu [Datum] (mögliche Geburtstage); neuere und bloße Jahreszahlen bleiben', () => {
+    const H = '2026-11-16';
+    const a = (s: string) => alteDaten(s, H).map((x) => s.slice(x.start, x.ende));
+    expect(a('geboren 12.03.1965, Beginn 01.01.2026')).toEqual(['12.03.1965']);
+    expect(a('am 12.3.65 und 01.01.26')).toEqual(['12.3.65']);
+    expect(a('1965-03-12 / 2020-05-01')).toEqual(['1965-03-12']);
+    expect(a('seit 12. März 1965')).toEqual(['12. März 1965']);
+    expect(a('Grenze: 16.11.2011 bleibt, 15.11.2011 nicht')).toEqual(['15.11.2011']);
+    expect(a('Baujahr 1998, Tarif 10/2026, 31.02.1960')).toEqual([]);
   });
 });
