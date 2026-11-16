@@ -1,6 +1,15 @@
-/* Service Worker: nur Push-Nachrichten anzeigen und beim Antippen die App öffnen. Kein Zwischenspeichern von Daten. */
-self.addEventListener("install", () => self.skipWaiting());
-self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
+/* Service Worker: Push-Nachrichten anzeigen und die Notfallseite (Sofortmaßnahmen, Hotlines) offline bereithalten.
+   Zwischengespeichert wird nur die statische Seite /notfall.html; die Hotlines liegen im Speicher des Geräts (localStorage). */
+const CACHE = "notfall-v1";
+self.addEventListener("install", (e) => e.waitUntil(caches.open(CACHE).then((c) => c.add("/notfall.html")).then(() => self.skipWaiting())));
+self.addEventListener("activate", (e) => e.waitUntil(caches.keys().then((k) => Promise.all(k.filter((x) => x !== CACHE).map((x) => caches.delete(x))))
+  .then(() => self.clients.claim())));
+
+// Nur Seitenaufrufe: ohne Netz die Notfallseite zeigen. Alles andere geht unverändert ans Netz.
+self.addEventListener("fetch", (e) => {
+  if (e.request.mode !== "navigate") return;
+  e.respondWith(fetch(e.request).catch(() => caches.match("/notfall.html").then((r) => r || Response.error())));
+});
 
 self.addEventListener("push", (e) => {
   let n = { title: "Haushalt", body: "", url: "/", tag: "haushalt" };

@@ -69,6 +69,7 @@ export function Uebersicht({ akte: S, haushaltId, onGeaendert }: { akte: Akte; h
       <div className="aktionen">
         <Link href="/dokumente/neu" className="knopf gross">＋ Dokument aufnehmen</Link>
         <Link href="/dokumente" className="knopf gross zweitrangig">Dokumente</Link>
+        <Link href="/schaden" className="knopf gross notfall">Schadenfall</Link>
       </div>
 
       <section className="karte">
