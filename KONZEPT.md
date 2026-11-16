@@ -289,13 +289,15 @@ Fehlerfälle: kein Netz → Entwurf auf dem Gerät; KI nicht erreichbar oder Lim
 - **Verhalten:** Bei einem Treffer kommt die Warnung „Sieht aus wie Dokument X vom …“, bevor die KI aufgerufen wird.
 - **Nutzen:** Spart KI-Kosten und verhindert doppelte Verträge, Fassungen und Belege, etwa wenn beide Eltern denselben Brief fotografieren.
 - Anmerkung: Verglichen wird nur der geschwärzte Text (er liegt ohnehin in der Datenbank); Prüfsumme für exakt gleiche Texte, Ähnlichkeit (Trigramm, 13.6) für zwei Fotos desselben Briefs. Die Person entscheidet, ob trotzdem gespeichert wird.
+- **Umgesetzt (16.11.2026):** Funktion `dokument_dubletten` (gleicher Text nach Normalform oder Trigramm-Ähnlichkeit ≥ 60 %, höchstens 3 Treffer); Prüfung vor dem KI-Aufruf und vor dem Speichern, Warnung mit Link, „Trotzdem weitermachen“.
 
 ### 13.6 Trigramm-Suche
 
 - **Problem:** Die deutsche Volltextsuche findet nur ganze Wörter, also bei „Einbruch“ nicht „Einbruchdiebstahl“.
 - **Lösung:** Die Postgres-Erweiterung pg_trgm zerlegt Texte in Dreier-Buchstabenfolgen und findet damit Wortteile und Tippfehler.
 - **Einsatz:** Als Ergänzung: erst Volltextsuche, bei wenigen Treffern zusätzlich Trigramm. Sie bringt auch bei Erkennungsfehlern der Texterkennung etwas („Einbnuch“).
-- Anmerkung (Stand Umsetzung): Die Suche nutzt bereits Wortanfänge („Einbruch“ findet „Einbruchdiebstahl“). Es fehlen Wortteile am Ende („Diebstahl“ → „Einbruchdiebstahl“) und Tippfehler – dafür pg_trgm [prüfen: auf Supabase als Erweiterung verfügbar].
+- Anmerkung (Stand Umsetzung): Die Suche nutzt bereits Wortanfänge („Einbruch“ findet „Einbruchdiebstahl“). Es fehlen Wortteile am Ende („Diebstahl“ → „Einbruchdiebstahl“) und Tippfehler – dafür pg_trgm (auf Supabase verfügbar).
+- **Umgesetzt (16.11.2026):** `seiten_suchen` ergänzt Volltext-Treffer um Trigramm-Treffer (Wortteile per Teilwortsuche, Tippfehler ab 70 % Wortähnlichkeit, ohne Stoppwörter); Volltext-Treffer stehen weiter vorn. Gilt für „Frag die Akte“ und den Schadenfall.
 
 ### 13.7 Stand der Fachregel
 

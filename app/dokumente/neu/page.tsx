@@ -12,6 +12,7 @@ import { dokumentSpeichern } from "@/lib/geraet/speichern";
 import { autoBalken, seitenText } from "@/lib/schwaerzen/seitentext";
 import { freitextPruefen } from "@/lib/akte/freitext";
 import { kiAuslesen, type KiAntwort } from "@/lib/geraet/ki";
+import { dublettenSuchen, type Dublette } from "@/lib/geraet/dubletten";
 import { startAuswahl, uebernahme, type Auswahl } from "@/lib/ki/uebernahme";
 import { VorschlagPruefen } from "@/components/dokument/vorschlag";
 import * as R from "@/lib/regeln";
@@ -33,6 +34,18 @@ export default function DokumentNeu() {
   const [ki, setKi] = useState<KiAntwort | null>(null);
   const [auswahl, setAuswahl] = useState<Auswahl | null>(null);
   const [hinweise, setHinweise] = useState<string[]>([]);
+  // Dubletten: einmal je Dokument prüfen, vor KI-Aufruf bzw. Speichern; nach Bestätigung nicht erneut
+  const [dubletten, setDubletten] = useState<Dublette[] | null>(null);
+  const [dublettenOk, setDublettenOk] = useState(false);
+  async function dublettenGeprueft(): Promise<boolean> {
+    if (dublettenOk || !seiten || !haushaltId) return true;
+    setStatus("Wird mit vorhandenen Dokumenten verglichen …");
+    const d = await dublettenSuchen(haushaltId, seiten, sl.liste);
+    setStatus("");
+    if (!d.length) { setDublettenOk(true); return true; }
+    setDubletten(d);
+    return false;
+  }
 
   useEffect(() => {
     // Zustand der Schwärzliste prüfen (lädt nur den verschlüsselten Block).
@@ -43,7 +56,7 @@ export default function DokumentNeu() {
 
   async function laden(files: FileList | File[] | null) {
     if (!files?.length) return;
-    setFehler(""); setSeiten(null); setAktiv(0); setKi(null); setAuswahl(null);
+    setFehler(""); setSeiten(null); setAktiv(0); setKi(null); setAuswahl(null); setDubletten(null); setDublettenOk(false);
     try {
       const r = await dateienLaden(Array.from(files), setStatus);
       try { await erkennen(r.seiten, setStatus); }
@@ -66,7 +79,9 @@ export default function DokumentNeu() {
 
   async function auslesen() {
     if (!seiten || !haushaltId || !akte) return;
-    setFehler(""); setStatus("Die KI liest die geschwärzten Seiten …");
+    setFehler("");
+    if (!(await dublettenGeprueft())) return;
+    setStatus("Die KI liest die geschwärzten Seiten …");
     try {
       const k = await kiAuslesen(haushaltId, seiten, sl.liste, akte);
       setKi(k);
@@ -86,6 +101,7 @@ export default function DokumentNeu() {
     const t = freitextPruefen(meta.titel, "streng") ?? freitextPruefen(meta.ablageort, "streng");
     if (t) return setFehler("Titel: " + t);
     setFehler("");
+    if (!(await dublettenGeprueft())) return;
     try {
       let m: Record<string, unknown> = Object.fromEntries(Object.entries(meta).map(([k, v]) => [k, v || null]));
       let ops: ReturnType<typeof uebernahme>["ops"] = [];
@@ -149,6 +165,23 @@ export default function DokumentNeu() {
             </details>
             <p className="leise">Bitte jede Seite prüfen: Namen, Anschrift, Unterschrift, Nummern. Fehlt ein Balken, „Balken ziehen“.</p>
           </section>
+
+          {dubletten && !dublettenOk && (
+            <section className="karte" role="alert">
+              <h2>Schon vorhanden?</h2>
+              {dubletten.map((d) => (
+                <p key={d.dokument_id}>
+                  {d.gleich ? "Gleicher Text wie" : `Sieht zu ${Math.round(d.aehnlichkeit * 100)} % aus wie`}{" "}
+                  <Link href={`/dokumente/${d.dokument_id}`}>{d.titel || d.typ}</Link>{d.datum ? ` vom ${R.fmt(d.datum)}` : ""}.
+                </p>
+              ))}
+              <p className="leise">Doppelte Dokumente kosten unnötig KI-Geld und können Verträge, Fassungen oder Belege doppelt anlegen.</p>
+              <div className="aktionen">
+                <button type="button" className="zweitrangig" onClick={() => { setDublettenOk(true); setDubletten(null); }}>Trotzdem weitermachen</button>
+                <Link className="knopf" href={`/dokumente/${dubletten[0].dokument_id}`}>Vorhandenes öffnen</Link>
+              </div>
+            </section>
+          )}
 
           <section className="karte">
             <h2>Mit KI auslesen</h2>
