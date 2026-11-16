@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<!-- Öffner für Haushalt-Sicherungen. Läuft offline in jedem aktuellen Browser, lädt nichts nach, sendet nichts.
+     Verfahren (offener Standard, Web Crypto): Schlüssel = PBKDF2(SHA-256, Passwort, salz, iter) → AES-GCM-256; daten/iv in Base64.
+     Inhalt nach dem Entschlüsseln: JSON { format, version, erstellt, tabellen: { name: [Zeilen] }, dateien: { "bucket/pfad": Base64-JPEG } }. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; connect-src 'none'">
+<title>Sicherung öffnen – Haushalt</title>
+<style>
+  :root { --hg: #f6f5f2; --fl: #fff; --tx: #1d1f22; --le: #5f6368; --li: #e3e1dc; --ak: #2f5d50; --fe: #a3312a; color-scheme: light dark; }
+  @media (prefers-color-scheme: dark) { :root { --hg: #16171a; --fl: #1f2125; --tx: #ecebe8; --le: #a3a6ab; --li: #34363b; --ak: #7fb8a4; --fe: #f08a80; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 16px/1.45 -apple-system, system-ui, sans-serif; background: var(--hg); color: var(--tx); padding: 16px; }
+  main { max-width: 70rem; margin: 0 auto; display: grid; gap: 1rem; }
+  .karte { background: var(--fl); border: 1px solid var(--li); border-radius: 14px; padding: 1rem; display: grid; gap: .6rem; }
+  h1 { font-size: 1.5rem; margin: 0; } h2 { font-size: 1.1rem; margin: 0; }
+  label { display: grid; gap: .3rem; color: var(--le); font-size: .95rem; }
+  input, select, button { font: inherit; min-height: 44px; border-radius: 10px; }
+  input, select { border: 1px solid var(--li); padding: .5rem .7rem; background: var(--hg); color: var(--tx); }
+  button { border: 0; background: var(--ak); color: var(--hg); font-weight: 600; padding: .5rem 1rem; cursor: pointer; }
+  button.zweit { background: transparent; color: var(--ak); border: 1px solid var(--li); }
+  .leise { color: var(--le); font-size: .92rem; } .fehler { color: var(--fe); }
+  .reihe { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+  .tabelle { overflow: auto; max-height: 70vh; border: 1px solid var(--li); border-radius: 10px; }
+  table { border-collapse: collapse; font-size: .85rem; }
+  th, td { border-bottom: 1px solid var(--li); padding: .35rem .5rem; text-align: left; vertical-align: top; max-width: 28rem; white-space: pre-wrap; word-break: break-word; }
+  th { position: sticky; top: 0; background: var(--fl); }
+  .bilder { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: .5rem; }
+  .bilder img { width: 100%; border-radius: 8px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Haushalt-Sicherung öffnen</h1>
+  <section class="karte">
+    <p class="leise">Diese Seite funktioniert ohne Internet und ohne die Haushalts-App. Die Sicherung wird nur auf diesem Gerät entschlüsselt; es wird nichts gesendet.</p>
+    <label>Sicherungsdatei (haushalt-sicherung-….json)<input type="file" id="datei" accept=".json,application/json"></label>
+    <label>Passwort der Sicherung<input type="password" id="passwort" autocomplete="off"></label>
+    <div class="reihe"><button id="oeffnen">Öffnen</button><span id="status" class="leise" role="status"></span></div>
+    <p id="fehler" class="fehler" role="alert" hidden></p>
+  </section>
+
+  <section class="karte" id="ergebnis" hidden>
+    <h2 id="titel"></h2>
+    <div class="reihe">
+      <label style="min-width:16rem">Tabelle<select id="tabelle"></select></label>
+      <button class="zweit" id="csv">Tabelle als CSV speichern</button>
+      <button class="zweit" id="json">Alles als lesbare JSON speichern</button>
+      <button class="zweit" id="bilderZeigen">Bilder anzeigen</button>
+    </div>
+    <p class="leise">Verworfene Einträge sind enthalten (Spalte „verworfen_am“ gefüllt). Schadenfotos sind nicht geschwärzt.</p>
+    <div class="tabelle"><table id="ansicht"></table></div>
+    <div class="bilder" id="bilder"></div>
+  </section>
+</main>
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var inhalt = null;
+  var NAMEN = { haushalte: 'Haushalt', firmen: 'Firmen', dinge: 'Dinge', vertraege: 'Verträge', vertrag_dinge: 'Vertrag ↔ Ding', vertrag_rollen: 'Vertrag ↔ Person',
+    dokumente: 'Dokumente', fassungen: 'Fassungen', belege: 'Belege', schadenfaelle: 'Schadenfälle', termine: 'Termine', ereignisse: 'Zeitleiste',
+    dokument_seiten: 'Dokument-Seiten (Text)', dokument_bilder: 'Dokument-Bilder', schaden_dinge: 'Schaden ↔ Ding', schaden_pruefungen: 'Schadenprüfungen',
+    schaden_fotos: 'Schadenfotos', fragen: 'Gespeicherte Fragen', schwaerzliste: 'Schwärzliste (verschlüsselt)' };
+
+  function unb64(s) { var b = atob(s), u = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; }
+  function fehler(t) { $('fehler').textContent = t; $('fehler').hidden = !t; }
+  function speichern(name, daten, typ) {
+    var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([daten], { type: typ })); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(a.href); }, 60000);
+  }
+  function text(w) { return w == null ? '' : typeof w === 'object' ? JSON.stringify(w) : String(w); }
+  function spalten(zeilen) { var s = []; zeilen.forEach(function (z) { Object.keys(z).forEach(function (k) { if (s.indexOf(k) < 0) s.push(k); }); }); return s; }
+
+  async function oeffnen() {
+    fehler('');
+    if (!window.crypto || !crypto.subtle) return fehler('Dieser Browser kann hier nicht entschlüsseln. Bitte die Datei in einem aktuellen Chrome, Firefox, Edge oder Safari auf dem Computer öffnen.');
+    var f = $('datei').files[0], pw = $('passwort').value;
+    if (!f || !pw) return fehler('Bitte Datei wählen und Passwort eingeben.');
+    $('status').textContent = 'Wird entschlüsselt …';
+    try {
+      var d = JSON.parse(await f.text());
+      if (d.format !== 'haushalt-sicherung') throw new Error('keine');
+      var basis = await crypto.subtle.importKey('raw', new TextEncoder().encode(pw), 'PBKDF2', false, ['deriveKey']);
+      var key = await crypto.subtle.deriveKey({ name: 'PBKDF2', salt: unb64(d.salz), iterations: d.iter || 310000, hash: 'SHA-256' }, basis, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
+      var klar;
+      try { klar = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64(d.iv) }, key, unb64(d.daten)); }
+      catch (e) { $('status').textContent = ''; return fehler('Das Passwort passt nicht (oder die Datei ist beschädigt).'); }
+      inhalt = JSON.parse(new TextDecoder().decode(klar));
+    } catch (e) { $('status').textContent = ''; return fehler('Das ist keine Sicherungsdatei der Haushalts-App.'); }
+    $('status').textContent = '';
+    $('titel').textContent = 'Sicherung vom ' + new Date(inhalt.erstellt).toLocaleString('de-DE');
+    var sel = $('tabelle'); sel.innerHTML = '';
+    Object.keys(inhalt.tabellen || {}).forEach(function (t) {
+      var o = document.createElement('option'); o.value = t; o.textContent = (NAMEN[t] || t) + ' (' + (inhalt.tabellen[t] || []).length + ')'; sel.appendChild(o);
+    });
+    sel.value = inhalt.tabellen.vertraege ? 'vertraege' : sel.value;
+    $('ergebnis').hidden = false; $('bilder').innerHTML = '';
+    zeigen();
+  }
+
+  function zeigen() {
+    var zeilen = (inhalt.tabellen[$('tabelle').value] || []), s = spalten(zeilen), t = $('ansicht');
+    t.innerHTML = '';
+    var kopf = t.insertRow(); s.forEach(function (k) { var th = document.createElement('th'); th.textContent = k; kopf.appendChild(th); });
+    zeilen.forEach(function (z) { var r = t.insertRow(); s.forEach(function (k) { r.insertCell().textContent = text(z[k]); }); });
+    if (!zeilen.length) t.insertRow().insertCell().textContent = '(leer)';
+  }
+
+  function csv() {
+    var name = $('tabelle').value, zeilen = inhalt.tabellen[name] || [], s = spalten(zeilen);
+    var feld = function (w) { var t = text(w); return /[";\n\r]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
+    var out = [s.map(feld).join(';')].concat(zeilen.map(function (z) { return s.map(function (k) { return feld(z[k]); }).join(';'); })).join('\r\n');
+    speichern('haushalt-' + name + '.csv', '﻿' + out, 'text/csv;charset=utf-8'); // BOM + Semikolon: deutsches Excel
+  }
+
+  function bilder() {
+    var box = $('bilder'); box.innerHTML = '';
+    var d = inhalt.dateien || {}, k = Object.keys(d);
+    if (!k.length) { box.textContent = 'In dieser Sicherung sind keine Bilder.'; return; }
+    k.forEach(function (pfad) {
+      var a = document.createElement('a'), img = document.createElement('img');
+      img.src = 'data:image/jpeg;base64,' + d[pfad]; img.alt = pfad; img.title = pfad.indexOf('schadenfotos/') === 0 ? 'Schadenfoto' : 'Dokumentseite';
+      a.href = img.src; a.download = pfad.split('/').slice(1).join('_'); a.appendChild(img); box.appendChild(a);
+    });
+  }
+
+  $('oeffnen').addEventListener('click', oeffnen);
+  $('passwort').addEventListener('keydown', function (e) { if (e.key === 'Enter') oeffnen(); });
+  $('tabelle').addEventListener('change', zeigen);
+  $('csv').addEventListener('click', csv);
+  $('json').addEventListener('click', function () {
+    var ohneBilder = Object.assign({}, inhalt, { dateien: Object.keys(inhalt.dateien || {}) });
+    speichern('haushalt-sicherung-lesbar.json', JSON.stringify(ohneBilder, null, 2), 'application/json');
+  });
+  $('bilderZeigen').addEventListener('click', bilder);
+})();
+</script>
+</body>
+</html>
