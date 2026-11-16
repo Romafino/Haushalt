@@ -113,6 +113,7 @@ export function Uebersicht({ akte: S, haushaltId, onGeaendert }: { akte: Akte; h
         <Link href="/leben">Lebensereignis</Link>
         <Link href="/kalender">Erinnerungen</Link>
         <Link href="/schwaerzliste">Schwärzliste</Link>
+        <Link href="/sicherung">Datensicherung</Link>
       </nav>
 
       <section className="karte">
