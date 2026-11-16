@@ -51,6 +51,7 @@ export const BEREICHE: Record<string, Bereich> = {
       { name: "gekuendigtZum", text: "Gekündigt zum", art: "datum", gruppe: "Kündigung" },
       { name: "bestaetigt", text: "Kündigung bestätigt", art: "janein", gruppe: "Kündigung" },
       { name: "ersetztDurchId", text: "Ersetzt durch", art: "verweis", verweis: "vertraege", gruppe: "Kündigung" },
+      { name: "ablageort", text: "Ablageort des Originals", art: "text", hilfe: "z. B. Ordner Versicherungen, Fach 3 oder Kundenportal", pruefung: "streng" },
       { name: "notiz", text: "Notiz", art: "notiz", pruefung: "streng" },
     ],
   },

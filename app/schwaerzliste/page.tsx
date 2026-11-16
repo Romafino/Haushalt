@@ -79,7 +79,7 @@ function Entsperren() {
 
 function Bearbeiten() {
   const s = useSchwaerzliste();
-  const [zeilen, setZeilen] = useState<ListenEintrag[]>(() => (s.liste.length ? s.liste : VORSCHLAG).concat([{ text: "", ersatz: "[Name]" }]));
+  const [zeilen, setZeilen] = useState<ListenEintrag[]>(() => (s.eigeneListe.length ? s.eigeneListe : VORSCHLAG).concat([{ text: "", ersatz: "[Name]" }]));
   const [meldung, setMeldung] = useState(""), [ok, setOk] = useState(false);
   // nur ausgefüllte Zeilen prüfen, Fehler wieder ihrer Zeile zuordnen
   const gefuellt = zeilen.map((z, i) => ({ z, i })).filter((x) => x.z.text.trim());

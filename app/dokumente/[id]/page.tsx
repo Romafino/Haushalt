@@ -1,5 +1,6 @@
 "use client";
 import { Suspense, useEffect, useState } from "react";
+import { AblageortFeld } from "@/components/akte/ablageort";
 import { SteckbriefListe } from "@/components/dokument/steckbrief";
 import { useParams, useRouter } from "next/navigation";
 import { Kopf } from "@/components/akte/kopf";
@@ -62,6 +63,7 @@ function Dokument() {
           <h1>{String(d.titel || d.typ)}</h1>
           <section className="karte">
             <span className="leise">{[d.typ, d.datum ? R.fmt(d.datum) : "", d.gueltigVon ? "gültig ab " + R.fmt(d.gueltigVon) : "", `${d.seiten} Seite(n)`].filter(Boolean).join(" · ")}</span>
+            {haushaltId && <AblageortFeld tabelle="dokumente" id={id} haushaltId={haushaltId} wert={String(d.ablageort ?? "")} />}
           </section>
           {d.steckbrief != null && (
             <section className="karte">

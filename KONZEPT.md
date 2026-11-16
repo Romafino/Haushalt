@@ -258,6 +258,7 @@ Fehlerfälle: kein Netz → Entwurf auf dem Gerät; KI nicht erreichbar oder Lim
   - Nummern aus dem Tresor werden beim Schwärzen zusätzlich wie Einträge der Schwärzliste behandelt (sicherer Treffer statt nur Muster).
   - Die Datensicherung enthält den Tresor nur verschlüsselt; der lesbare Export und das Notfallblatt ohne Nummern enthalten ihn nicht.
   - Kündigungsentwurf mit Nummer nur auf dem Gerät (Kopieren/Drucken), nicht gespeichert.
+- **Umgesetzt (16.11.2026):** Tabelle `nummern_tresor` (ein verschlüsselter Block je Haushalt, Schlüssel der Schwärzliste), Nummern je Vertrag und Schadenfall, automatisch geschwärzt (auch ohne Trennzeichen), KI-Antworten auch dagegen geprüft, Kündigungsentwurf füllt [Kundennummer]; Ablageort an Vertrag und Dokument. Offen: Passwortwechsel der Schwärzliste muss den Tresor mit neu verschlüsseln (Passwortwechsel gibt es noch nicht).
 
 ### 13.2 Notfallblatt
 

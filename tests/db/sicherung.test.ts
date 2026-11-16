@@ -9,7 +9,7 @@ let max: Nutzer, fremd: Nutzer;
 let haus: string, hausB: string;
 const EIN = 'select public.sicherung_einspielen($1, $2::jsonb) as stand';
 const TABELLEN = ['firmen', 'dinge', 'vertraege', 'vertrag_dinge', 'vertrag_rollen', 'dokumente', 'fassungen', 'belege', 'schadenfaelle', 'termine', 'ereignisse',
-  'dokument_seiten', 'dokument_bilder', 'schaden_dinge', 'schaden_pruefungen', 'schaden_fotos', 'fragen', 'schwaerzliste'];
+  'dokument_seiten', 'dokument_bilder', 'schaden_dinge', 'schaden_pruefungen', 'schaden_fotos', 'fragen', 'schwaerzliste', 'nummern_tresor'];
 
 /** So wie die App sichert: alle Zeilen je Tabelle als JSON. */
 async function sichern(h: string) {
@@ -36,6 +36,7 @@ beforeAll(async () => {
   await db.query("insert into public.termine (haushalt_id, schluessel, abgeleitet, erledigt_fuer) values ($1, $2, true, '2026-01-01')", [haus, 'kb_' + v1]);
   await db.query("insert into public.fragen (haushalt_id, frage, antwort, stichtag, erstellt_von) values ($1, 'Ist [Vater] versichert?', 'Ja.', '2026-11-16', $2)", [haus, max.id]);
   await db.query("insert into public.schwaerzliste (haushalt_id, salz, iter, iv, daten) values ($1, $2, 310000, $3, $4)", [haus, 'A'.repeat(22) + '==', 'B'.repeat(16), 'C'.repeat(40)]);
+  await db.query('insert into public.nummern_tresor (haushalt_id, iv, daten) values ($1, $2, $3)', [haus, 'B'.repeat(16), 'D'.repeat(40)]);
 });
 afterAll(async () => { await db?.end(); });
 

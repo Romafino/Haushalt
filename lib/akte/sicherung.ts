@@ -9,7 +9,7 @@ export const PASSWORT_MIN = 12;
 /** Tabellen der Sicherung in Lade-Reihenfolge (für ein späteres Zurückspielen). Ohne Mitglieder, Geräte, Kalender-Schlüssel, KI-Protokoll. */
 export const TABELLEN = [
   'haushalte', 'firmen', 'dinge', 'vertraege', 'vertrag_dinge', 'vertrag_rollen', 'dokumente', 'fassungen', 'belege', 'schadenfaelle',
-  'termine', 'ereignisse', 'dokument_seiten', 'dokument_bilder', 'schaden_dinge', 'schaden_pruefungen', 'schaden_fotos', 'fragen', 'schwaerzliste',
+  'termine', 'ereignisse', 'dokument_seiten', 'dokument_bilder', 'schaden_dinge', 'schaden_pruefungen', 'schaden_fotos', 'fragen', 'schwaerzliste', 'nummern_tresor',
 ] as const;
 export type Tabelle = (typeof TABELLEN)[number];
 

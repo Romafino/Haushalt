@@ -25,7 +25,7 @@ export default function DokumentNeu() {
   const [aktiv, setAktiv] = useState(0);
   const [status, setStatus] = useState("");
   const [fehler, setFehler] = useState("");
-  const [meta, setMeta] = useState<Record<string, string>>({ typ: "Brief", titel: "", datum: "", gueltigVon: "", gueltigBis: "", vertragId: "", dingId: "", firmaId: "" });
+  const [meta, setMeta] = useState<Record<string, string>>({ typ: "Brief", titel: "", datum: "", gueltigVon: "", gueltigBis: "", vertragId: "", dingId: "", firmaId: "", ablageort: "" });
   const eingabe = useRef<HTMLInputElement>(null);
   // Dokument-ID erst bei Bedarf erzeugen (nicht beim Vorab-Rendern); bleibt für dieses Dokument gleich
   const dokId = useRef<string | null>(null);
@@ -83,7 +83,7 @@ export default function DokumentNeu() {
   async function speichern(e: FormEvent) {
     e.preventDefault();
     if (!seiten || !haushaltId) return;
-    const t = freitextPruefen(meta.titel, "streng");
+    const t = freitextPruefen(meta.titel, "streng") ?? freitextPruefen(meta.ablageort, "streng");
     if (t) return setFehler("Titel: " + t);
     setFehler("");
     try {
@@ -169,6 +169,7 @@ export default function DokumentNeu() {
             <h2>Angaben</h2>
             <label>Art<select value={meta.typ} onChange={(e) => setMeta({ ...meta, typ: e.target.value })}>{R.ENUM.typ.map((t) => <option key={t}>{t}</option>)}</select></label>
             <label>Titel<input value={meta.titel} maxLength={200} onChange={(e) => setMeta({ ...meta, titel: e.target.value })} placeholder="z. B. Hausrat Police 2026" /></label>
+            <label>Ablageort des Originals<input value={meta.ablageort} maxLength={200} onChange={(e) => setMeta({ ...meta, ablageort: e.target.value })} placeholder="z. B. Ordner Versicherungen, Fach 3" /></label>
             <label>Datum des Dokuments<input type="date" value={meta.datum} onChange={(e) => setMeta({ ...meta, datum: e.target.value })} /></label>
             <label>Gültig von<input type="date" value={meta.gueltigVon} onChange={(e) => setMeta({ ...meta, gueltigVon: e.target.value })} /></label>
             <label>Gültig bis<input type="date" value={meta.gueltigBis} onChange={(e) => setMeta({ ...meta, gueltigBis: e.target.value })} /></label>
