@@ -32,6 +32,27 @@ const MONAT_JAHR = /^((0?[1-9]|1[0-2])[./]\s?(19|20)\d{2}|(19|20)\d{2}[/-]((0?[1
 /* Zahl mit Einheit dahinter ist ein Wert, keine Nummer: Betrag (€, EUR, Euro), Zählerstand/Leistung (kWh, km, m³, qm, PS, kW, l). */
 const EINHEIT_DANACH = /^\s?(€|eur\b|euro\b|kwh\b|km\b|m³|m3\b|m²|qm\b|ps\b|kw\b|l\b|liter\b)/i;
 const TELEFON_DAVOR = /(tel|telefon|fax|hotline|service|ruf|mobil)[\s.:/-]*(\+?\d[\d\s/-]*)?$/i;
+/* Alte Daten (Wunsch 16.11.2026): vollständige Datumsangaben, die mehr als 15 Jahre zurückliegen, könnten Geburtstage sein
+   und werden zu [Datum]. Erkannt: 12.03.1965, 12.3.65, 1965-03-12, 12. März 1965. Bloße Jahreszahlen (Baujahr 1998) bleiben. */
+const MONATE = ['januar', 'februar', 'märz', 'april', 'mai', 'juni', 'juli', 'august', 'september', 'oktober', 'november', 'dezember'];
+const ALT_RE = new RegExp('\\b(\\d{1,2})\\.\\s?(\\d{1,2})\\.\\s?(\\d{4}|\\d{2})(?!\\d)|\\b(\\d{4})-(\\d{2})-(\\d{2})\\b|\\b(\\d{1,2})\\.\\s?(' + MONATE.join('|') + ')\\s(\\d{4})\\b', 'gi');
+const isoHeute = () => new Date().toISOString().slice(0, 10);
+export function alteDaten(text: string, heute: string = isoHeute()): { start: number; ende: number }[] {
+  const jetzt = Number(heute.slice(0, 4)), grenze = String(jetzt - 15) + heute.slice(4);
+  const out: { start: number; ende: number }[] = [];
+  for (const m of text.matchAll(ALT_RE)) {
+    let j: number, mo: number, t: number;
+    if (m[1]) { t = +m[1]; mo = +m[2]; j = +m[3]; if (m[3].length === 2) j += j + 2000 > jetzt ? 1900 : 2000; }
+    else if (m[4]) { j = +m[4]; mo = +m[5]; t = +m[6]; }
+    else { t = +m[7]; mo = MONATE.indexOf(m[8].toLowerCase()) + 1; j = +m[9]; }
+    const iso = `${j}-${String(mo).padStart(2, '0')}-${String(t).padStart(2, '0')}`;
+    const d = new Date(iso + 'T00:00:00Z');
+    if (isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== iso) continue; // kein gültiges Datum (z. B. 31.02.)
+    if (iso < grenze) out.push({ start: m.index!, ende: m.index! + m[0].length });
+  }
+  return out;
+}
+
 export function nummernTreffer(text: string): { start: number; ende: number }[] {
   return (treffer(text, [], { ziffern: true }) as { start: number; ende: number }[]).filter((t) => {
     const wert = text.slice(t.start, t.ende).trim();
@@ -54,6 +75,7 @@ export function musterBereiche(text: string): { start: number; ende: number; lab
   });
   alle(ANREDE_RE, (m) => { const s = m.index + m[0].length - m[2].length; out.push({ start: s, ende: s + m[2].length, label: '[Name]' }); });
   for (const t of nummernTreffer(text)) out.push({ ...t, label: '[Nummer]' });
+  for (const t of alteDaten(text)) if (!out.some((o) => o.start < t.ende && t.start < o.ende)) out.push({ ...t, label: '[Datum]' });
   return out;
 }
 
@@ -123,6 +145,7 @@ export function seitenText(stuecke: Stueck[] | null, balken: Balken[], liste: Li
   }
   let text: string = anonymisieren(out.join('\n'), liste).text;
   for (const t of nummernTreffer(text).reverse()) text = text.slice(0, t.start) + '[Nummer]' + text.slice(t.ende);
+  for (const t of alteDaten(text).reverse()) text = text.slice(0, t.start) + '[Datum]' + text.slice(t.ende);
   return text;
 }
 
