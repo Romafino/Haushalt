@@ -67,3 +67,50 @@ export async function erinnerungAnlegen(haushaltId: string, datum: string): Prom
   const { error } = await sb.from("termine").insert({ haushalt_id: haushaltId, titel: "Datensicherung erstellen", datum, wiederholung_monate: 1, quelle: "sicherung", notiz: "Übersicht → Datensicherung" });
   return error ? "Die Erinnerung konnte nicht angelegt werden." : null;
 }
+
+const UUID_G = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g;
+const bytes = (b64: string) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+
+/** Sicherung zurückspielen: ersetzt ALLE Daten dieses Haushalts (eine Transaktion in der Datenbank).
+    Ablauf: Bilder hochladen → Daten ersetzen → nicht mehr benutzte Bilder entfernen. Scheitert das Ersetzen, werden nur neu hochgeladene Bilder wieder entfernt. */
+export async function sicherungEinspielen(haushaltId: string, inhalt: Inhalt, status: (t: string) => void) {
+  const sb = supabaseBrowser();
+  const alt = String(inhalt.tabellen.haushalte?.[0]?.id ?? "");
+  // Haushalts-ID der Sicherung durch die des Ziels ersetzen (steht auch in Bild-Pfaden)
+  const ersetzen = (t: string) => (alt && alt !== haushaltId ? t.replace(UUID_G, (u) => (u === alt ? haushaltId : u)) : t);
+  const tabellen = JSON.parse(ersetzen(JSON.stringify(inhalt.tabellen))) as Inhalt["tabellen"];
+  const dateien = Object.entries(inhalt.dateien).map(([k, v]) => [ersetzen(k), v] as const);
+
+  const vorher = await Promise.all([
+    sb.from("dokument_bilder").select("pfad").eq("haushalt_id", haushaltId),
+    sb.from("schaden_fotos").select("pfad").eq("haushalt_id", haushaltId),
+  ]);
+  const altePfade = new Set([...(vorher[0].data ?? []).map((z) => "dokumente/" + z.pfad), ...(vorher[1].data ?? []).map((z) => "schadenfotos/" + z.pfad)]);
+
+  const hochgeladen: string[] = [];
+  for (const [i, [schluessel, b64]] of dateien.entries()) {
+    status(`Bilder werden hochgeladen (${i + 1}/${dateien.length}) …`);
+    const [bucket, ...rest] = schluessel.split("/");
+    const { error } = await sb.storage.from(bucket).upload(rest.join("/"), bytes(b64), { contentType: "image/jpeg", upsert: true });
+    if (error) throw new Error("Ein Bild konnte nicht hochgeladen werden. Es wurde nichts ersetzt.");
+    hochgeladen.push(schluessel);
+  }
+  const entfernen = async (liste: string[]) => {
+    for (const bucket of ["dokumente", "schadenfotos"]) {
+      const p = liste.filter((x) => x.startsWith(bucket + "/")).map((x) => x.slice(bucket.length + 1));
+      if (p.length) await sb.storage.from(bucket).remove(p);
+    }
+  };
+
+  status("Daten werden ersetzt …");
+  const daten: Record<string, unknown> = { ...tabellen, einstellungen: tabellen.haushalte?.[0]?.einstellungen ?? undefined };
+  delete daten.haushalte;
+  const { data, error } = await sb.rpc("sicherung_einspielen", { p_haushalt_id: haushaltId, p_daten: daten });
+  if (error) {
+    await entfernen(hochgeladen.filter((p) => !altePfade.has(p)));
+    throw new Error(error.code === "23505" ? "Die Sicherung gehört zu einem anderen Haushalt, der hier noch existiert. Es wurde nichts ersetzt." : "Die Sicherung konnte nicht zurückgespielt werden. Es wurde nichts ersetzt.");
+  }
+  const neu = new Set(hochgeladen);
+  await entfernen([...altePfade].filter((p) => !neu.has(p)));
+  return data as Record<string, number>;
+}

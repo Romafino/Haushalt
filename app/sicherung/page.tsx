@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { Kopf } from "@/components/akte/kopf";
 import { useAkte } from "@/lib/akte/useAkte";
-import { erinnerungAnlegen, sicherungErstellen } from "@/lib/geraet/sicherung";
-import { oeffnen, PASSWORT_MIN, zusammenfassung } from "@/lib/akte/sicherung";
+import { erinnerungAnlegen, sicherungEinspielen, sicherungErstellen } from "@/lib/geraet/sicherung";
+import { useSchwaerzliste } from "@/components/schwaerzliste/kontext";
+import { oeffnen, PASSWORT_MIN, zusammenfassung, type Inhalt } from "@/lib/akte/sicherung";
 import * as R from "@/lib/regeln";
 
 export default function Sicherung() {
@@ -18,6 +19,9 @@ export default function Sicherung() {
   const [pruefPw, setPruefPw] = useState("");
   const [pruefDatei, setPruefDatei] = useState<File | null>(null);
   const [pruefung, setPruefung] = useState<ReturnType<typeof zusammenfassung> | null>(null);
+  const [geoeffnet, setGeoeffnet] = useState<Inhalt | null>(null);
+  const [bestaetigung, setBestaetigung] = useState("");
+  const sl = useSchwaerzliste();
   const letzte = akte?.einst.letzteSicherung as string | undefined;
   const pwFehler = pw && pw.length < PASSWORT_MIN ? `Mindestens ${PASSWORT_MIN} Zeichen.` : pw2 && pw !== pw2 ? "Die Passwörter stimmen nicht überein." : "";
 
@@ -34,8 +38,8 @@ export default function Sicherung() {
 
   async function pruefen() {
     if (!pruefDatei) return;
-    setFehler(""); setPruefung(null); setStatus("Datei wird geöffnet …");
-    try { setPruefung(zusammenfassung(await oeffnen(await pruefDatei.text(), pruefPw))); }
+    setFehler(""); setPruefung(null); setGeoeffnet(null); setStatus("Datei wird geöffnet …");
+    try { const i = await oeffnen(await pruefDatei.text(), pruefPw); setGeoeffnet(i); setPruefung(zusammenfassung(i)); }
     catch (e) { setFehler(e instanceof Error ? e.message : "Die Datei konnte nicht geöffnet werden."); }
     setStatus("");
   }
@@ -56,8 +60,8 @@ export default function Sicherung() {
       </section>
 
       <section className="karte formular">
-        <h2>Sicherung prüfen</h2>
-        <p className="leise">Öffnet eine Sicherungsdatei auf diesem Gerät und zeigt, was drinsteckt. Es wird nichts verändert.</p>
+        <h2>Sicherung prüfen oder zurückspielen</h2>
+        <p className="leise">Öffnet eine Sicherungsdatei auf diesem Gerät und zeigt, was drinsteckt. Erst danach kann sie – nach ausdrücklicher Bestätigung – zurückgespielt werden.</p>
         <input type="file" accept="application/json,.json" onChange={(e) => { setPruefDatei(e.target.files?.[0] ?? null); setPruefung(null); }} />
         <label><span>Passwort der Datei</span><input type="password" autoComplete="off" value={pruefPw} onChange={(e) => setPruefPw(e.target.value)} /></label>
         <button className="zweitrangig" disabled={!pruefDatei || !pruefPw || !!status} onClick={pruefen}>Prüfen</button>
@@ -65,6 +69,25 @@ export default function Sicherung() {
           <p>In Ordnung – Sicherung vom {new Date(pruefung.erstellt).toLocaleString("de-DE")}: {pruefung.vertraege} Verträge, {pruefung.firmen} Firmen, {pruefung.dinge} Dinge, {pruefung.belege} Belege, {pruefung.dokumente} Dokumente, {pruefung.termine} Termine, {pruefung.schadenfaelle} Schadenfälle, {pruefung.fragen} gespeicherte Fragen, {pruefung.dateien} Bilder{pruefung.schwaerzliste ? ", Schwärzliste" : ""}.</p>
         )}
       </section>
+
+      {geoeffnet && (
+        <section className="karte formular">
+          <h2>Diese Sicherung zurückspielen</h2>
+          <p className="fehler">Achtung: Alle jetzigen Daten dieses Haushalts werden durch den Stand der Sicherung ersetzt. Was seit der Sicherung dazukam, ist danach weg. Erstelle vorher am besten eine aktuelle Sicherung.</p>
+          <p className="leise">Mitglieder, Push-Geräte und Kalender-Abo bleiben. Schlägt etwas fehl, bleibt alles wie vorher.</p>
+          <label><span>Zur Bestätigung „ERSETZEN“ eingeben</span><input value={bestaetigung} autoCapitalize="characters" onChange={(e) => setBestaetigung(e.target.value)} /></label>
+          <button disabled={!haushaltId || bestaetigung.trim() !== "ERSETZEN" || !!status} onClick={async () => {
+            if (!haushaltId) return;
+            setFehler(""); setMeldung("");
+            try {
+              const n = await sicherungEinspielen(haushaltId, geoeffnet, setStatus);
+              setMeldung(`Zurückgespielt: ${n.vertraege ?? 0} Verträge, ${n.dokumente ?? 0} Dokumente, ${n.termine ?? 0} Termine. Bitte die Schwärzliste neu entsperren.`);
+              setGeoeffnet(null); setPruefung(null); setBestaetigung(""); await sl.sperren(true); await neuLaden();
+            } catch (e) { setFehler(e instanceof Error ? e.message : "Das hat nicht geklappt."); }
+            setStatus("");
+          }}>{status || "Daten ersetzen"}</button>
+        </section>
+      )}
 
       <section className="karte">
         <h2>Erinnerung</h2>
