@@ -5,7 +5,9 @@ import { useEffect, useState } from "react";
 import { Kopf } from "@/components/akte/kopf";
 import { useAkte } from "@/lib/akte/useAkte";
 import { useSchwaerzliste } from "@/components/schwaerzliste/kontext";
-import { notfallblatt, type Notfallblatt } from "@/lib/akte/notfallblatt";
+import { notfallblatt, notfallblattBloecke, type Notfallblatt } from "@/lib/akte/notfallblatt";
+import { pdf } from "@/lib/export/pdf";
+import { dateiTeilen } from "@/lib/geraet/teilen";
 import { notfallMerken } from "@/lib/geraet/schaden";
 import * as R from "@/lib/regeln";
 
@@ -36,6 +38,7 @@ export default function NotfallblattSeite() {
   const { akte, fehler } = useAkte();
   const sl = useSchwaerzliste();
   const [mitNummern, setMitNummern] = useState(false);
+  const [meldung, setMeldung] = useState("");
   useEffect(() => { if (sl.zustand === "unbekannt") void sl.pruefen(); }, [sl]);
   useEffect(() => { if (akte) notfallMerken(akte); }, [akte]);
   const nummernAn = mitNummern && sl.zustand === "offen";
@@ -52,7 +55,16 @@ export default function NotfallblattSeite() {
           <label className="janein"><input type="checkbox" checked={mitNummern} onChange={(e) => setMitNummern(e.target.checked)} /><span>Nummern aus dem Tresor anzeigen (nicht ausdrucken und nicht weitergeben)</span></label>
         )}
         {nummernAn && <p className="fehler">Mit Nummern – diese Fassung bitte nicht ausdrucken oder als PDF weitergeben.</p>}
-        <button onClick={() => window.print()}>Drucken oder als PDF sichern</button>
+        <div className="aktionen">
+          <button disabled={!n} onClick={async () => {
+            if (!n) return;
+            const r = await dateiTeilen(pdf(notfallblattBloecke(n, nummernAn), "Notfallblatt Haushalt"), `notfallblatt-${n.stand}.pdf`, "application/pdf");
+            setMeldung(r === "geladen" ? "PDF gespeichert (Downloads)." : r === "geteilt" ? "" : "Abgebrochen.");
+          }}>Als PDF (drucken, sichern, teilen)</button>
+          <button className="zweitrangig" onClick={() => window.print()}>Seite drucken</button>
+        </div>
+        <p className="leise">Auf dem iPhone öffnet sich das Teilen-Menü – dort „Drucken“ oder „In Dateien sichern“ wählen.</p>
+        {meldung && <p className="leise" role="status">{meldung}</p>}
       </section>
       {fehler && <p className="fehler">{fehler}</p>}
       {!n && !fehler && <p className="leise">Wird geladen …</p>}

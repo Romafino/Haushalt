@@ -30,3 +30,30 @@ export function notfallblatt(S: Akte, heute: string, nummern?: Tresor): Notfallb
     fristen: offen.slice(0, 10).map((f) => ({ titel: f.titel, datum: f.datum })),
   };
 }
+
+const fmt = (iso: string) => iso.split('-').reverse().join('.');
+
+/** Notfallblatt als Textblöcke für die PDF. */
+export function notfallblattBloecke(n: Notfallblatt, mitNummern: boolean): import('@/lib/export/pdf').Block[] {
+  const b: import('@/lib/export/pdf').Block[] = [
+    { art: 'titel', text: 'Notfallblatt Haushalt' },
+    { art: 'klein', text: `Stand ${fmt(n.stand)}` + (mitNummern ? ' · MIT NUMMERN – nicht ausdrucken oder weitergeben' : ' · ohne Beträge und Nummern') },
+    { art: 'h', text: 'Im Schadenfall zuerst' },
+    ...n.sofort.map((t, i) => ({ art: 'text' as const, text: `${i + 1}. ${t}` })),
+  ];
+  const vertraege = (titel: string, l: Notfallblatt['versicherungen']) => {
+    if (!l.length) return;
+    b.push({ art: 'h', text: titel });
+    for (const z of l) {
+      b.push({ art: 'text', text: [z.name, z.firma, z.hotline ? 'Tel. ' + z.hotline : ''].filter(Boolean).join(' – ') });
+      const info = [z.fuerWen ? 'für ' + z.fuerWen : '', z.bezug, 'Original: ' + (z.ablageort || '–'), z.frist ? `Frist ${fmt(z.frist.datum)}: ${z.frist.titel}` : '', ...z.nummern].filter(Boolean).join(' · ');
+      b.push({ art: 'klein', text: info });
+    }
+  };
+  vertraege('Versicherungen', n.versicherungen);
+  vertraege('Weitere Verträge', n.vertraege);
+  if (n.firmen.length) { b.push({ art: 'h', text: 'Weitere Kontakte' }); n.firmen.forEach((f) => b.push({ art: 'text', text: `${f.name}${f.art ? ' (' + f.art + ')' : ''} – Tel. ${f.hotline}` })); }
+  if (n.fristen.length) { b.push({ art: 'h', text: 'Nächste Fristen und Termine' }); n.fristen.forEach((f) => b.push({ art: 'text', text: `${fmt(f.datum)} – ${f.titel}` })); }
+  b.push({ art: 'abstand' }, { art: 'klein', text: 'Unterlagen und Zugang: Haushalts-App (Anmeldung mit E-Mail und Passwort). Ohne Gewähr; maßgeblich sind die Verträge selbst.' });
+  return b;
+}
