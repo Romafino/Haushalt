@@ -3,7 +3,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { supabaseUmgebung } from "./umgebung";
 
 // /api/kalender: Abruf durch Kalender-Apps ohne Anmeldung, geschützt durch den geheimen Schlüssel im Link
-const OFFEN = ["/anmelden", "/api/kalender"];
+// /api/cron: Vercel Cron ohne Anmeldung, geschützt durch CRON_SECRET
+const OFFEN = ["/anmelden", "/api/kalender", "/api/cron"];
 
 /**
  * Frischt die Anmeldung je Anfrage auf und leitet Nicht-Angemeldete zur Anmeldung.
