@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { frageMerken } from "@/lib/geraet/frage-entwurf";
+import { frageMerken, sucheMerken } from "@/lib/geraet/frage-entwurf";
 import { notfallMerken } from "@/lib/geraet/schaden";
 import type { Akte, Eintrag } from "@/lib/akte/abbilden";
 import { supabaseBrowser } from "@/lib/supabase/browser";
@@ -62,11 +62,13 @@ export function Uebersicht({ akte: S, haushaltId, onGeaendert }: { akte: Akte; h
   return (
     <>
       <form className="karte fragefeld" onSubmit={fragen} role="search">
-        <label htmlFor="frage-start"><h2>Frag die Akte</h2></label>
-        <div className="zeile">
-          <input id="frage-start" type="search" enterKeyHint="search" value={frage} onChange={(e) => setFrage(e.target.value)} placeholder="z. B. Ist mein Fahrrad versichert?" maxLength={1000} />
-          <button type="submit" disabled={frage.trim().length < 3}>Fragen</button>
+        <label htmlFor="frage-start"><h2>Suchen oder fragen</h2></label>
+        <input id="frage-start" type="search" enterKeyHint="search" value={frage} onChange={(e) => setFrage(e.target.value)} placeholder="z. B. Heizung – oder: Ist mein Fahrrad versichert?" maxLength={1000} />
+        <div className="aktionen">
+          <button type="button" className="zweitrangig" onClick={() => { sucheMerken(frage.trim()); router.push("/suche"); }}>Suchen</button>
+          <button type="submit" disabled={frage.trim().length < 3}>KI fragen</button>
         </div>
+        <p className="leise">Suchen: sofort, ohne KI, kostenlos. KI fragen: Antwort mit Quellen, wenige Cent.</p>
       </form>
 
       <div className="aktionen">
