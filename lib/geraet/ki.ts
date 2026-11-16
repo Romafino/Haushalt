@@ -5,6 +5,7 @@ import { seitenText, listenTreffer } from "@/lib/schwaerzen/seitentext";
 import { anonymisieren } from "@/lib/schwaerzen";
 import type { ListenEintrag } from "@/lib/schwaerzen/liste";
 import { vorschlagAus } from "@/lib/ki/antwort";
+import { seitenInGrenze } from "@/lib/ki/prompt";
 import type { Vorschlag } from "@/lib/ki/uebernahme";
 import type { Akte } from "@/lib/akte/abbilden";
 import * as R from "@/lib/regeln";
@@ -27,7 +28,11 @@ export type KiAntwort = { vorschlag: Vorschlag; kostenCent: number; limit: { ver
 export async function kiAuslesen(haushaltId: string, seiten: Seite[], liste: ListenEintrag[], akte: Akte): Promise<KiAntwort> {
   const texte = seiten.map((s, i) => ({ nr: i + 1, text: seitenText(s.stuecke, s.balken, liste) }));
   if (texte.some((t) => listenTreffer(t.text, liste).length)) throw new Error("Im Text steht noch etwas aus der Schwärzliste. Bitte nachschwärzen.");
-  const bilder = await Promise.all(seiten.slice(0, MAX_BILDER).map(kleinesBild));
+  let bilder = await Promise.all(seiten.slice(0, MAX_BILDER).map(kleinesBild));
+  // Anfrage unter der Größengrenze des Servers halten (4,2 MB): notfalls weniger Bilder mitschicken, der Text hat Vorrang
+  const groesse = () => new Blob([JSON.stringify({ haushaltId, seiten: texte, bilder })]).size;
+  while (bilder.length > 1 && groesse() > 4_000_000) bilder = bilder.slice(0, -1);
+  if (groesse() > 4_100_000) throw new Error("Das Dokument ist für einen KI-Aufruf zu groß. Bitte in Teilen aufnehmen (z. B. Bedingungen Teil 1 und Teil 2).");
   const r = await fetch("/api/ki/dokument", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ haushaltId, seiten: texte, bilder }) });
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(j.fehler ?? "Die KI ist gerade nicht erreichbar.");
@@ -42,6 +47,8 @@ export async function kiAuslesen(haushaltId: string, seiten: Seite[], liste: Lis
     warnung = "Achtung: Die Antwort der KI enthielt Angaben aus eurer Schwärzliste. Die KI hat also etwas Ungeschwärztes gesehen. Die Stellen wurden ersetzt; bitte die Seiten prüfen und nachschwärzen.";
     vorschlag = R.tief(vorschlag, (t: string) => anonymisieren(t, liste).text) as Vorschlag;
   }
-  if (seiten.length > MAX_BILDER) warnung = (warnung ? warnung + " " : "") + `Nur die ersten ${MAX_BILDER} Seiten gingen als Bild mit; der Text aller Seiten wurde gesendet.`;
+  const gelesen = seitenInGrenze(texte);
+  if (gelesen < texte.length) warnung = (warnung ? warnung + " " : "") + `Achtung: Das Dokument ist sehr lang. Die KI hat nur den Text von Seite 1 bis ${gelesen} von ${texte.length} gelesen; Angaben auf späteren Seiten fehlen im Vorschlag und im Steckbrief. Gespeichert und durchsuchbar sind trotzdem alle Seiten. Für eine vollständige Auswertung den Rest als eigenes Dokument aufnehmen.`;
+  if (seiten.length > bilder.length) warnung = (warnung ? warnung + " " : "") + `Als Bild gingen die ersten ${bilder.length} Seiten mit; vom Rest nur der Text.`;
   return { vorschlag, kostenCent: j.kostenCent, limit: j.limit, warnung };
 }

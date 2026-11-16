@@ -8,15 +8,23 @@ export type Kurzakte = {
   dinge: { id: string; name: unknown; kategorie: unknown }[];
 };
 
-export const MAX_TEXT = 180000;
+/** Höchstens so viele Zeichen geschwärzter Text je Dokument an die KI (rund 150 dicht bedruckte Seiten). Angehoben am 16.11.2026 von 180.000. */
+export const MAX_TEXT = 600000;
+
+/** Wie viele Seiten (von vorn) passen in die Grenze? Gleiche Rechnung für Prompt (Server) und Warnung (Gerät). */
+export function seitenInGrenze(seiten: { nr: number; text: string }[]): number {
+  let laenge = 0, n = 0;
+  for (const p of seiten) {
+    const l = ('=== Seite ' + p.nr + ' ===\n').length + p.text.length + 2;
+    if (laenge + l > MAX_TEXT) break;
+    laenge += l; n++;
+  }
+  return n;
+}
 
 export function dokumentPrompt(seiten: { nr: number; text: string }[], akte: Kurzakte, heute: string, mitBildern: number): string {
-  let text = '', gekuerzt = false;
-  for (const p of seiten) {
-    const t = '=== Seite ' + p.nr + ' ===\n' + p.text + '\n\n';
-    if (text.length + t.length > MAX_TEXT) { gekuerzt = true; break; }
-    text += t;
-  }
+  const n = seitenInGrenze(seiten), gekuerzt = n < seiten.length;
+  const text = seiten.slice(0, n).map((p) => '=== Seite ' + p.nr + ' ===\n' + p.text + '\n\n').join('');
   const kurz = (l: unknown[]) => JSON.stringify(l);
   return 'Du wertest EIN Dokument für die private Haushalts-Akte einer Familie aus (Einfamilienhaus im Eigentum; Rollen: Vater, Mutter, Tochter (volljährig, Studentin, wohnt in einer WG), Kind 2). Heute ist ' + heute + '.\n\n' +
     (mitBildern ? 'Du bekommst ' + mitBildern + ' geschwärzte Seitenbild(er) in Seitenreihenfolge und den auf dem Gerät erkannten, ebenfalls geschwärzten Text. Schwarze Balken mit Platzhalter sind entfernte Angaben.\n\n' : '') +

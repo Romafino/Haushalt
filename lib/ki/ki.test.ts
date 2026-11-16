@@ -1,6 +1,6 @@
 /* KI-Module: Prompt, Antwort lesen, Kosten/Limit. Erfundene Daten. */
 import { describe, expect, it } from 'vitest';
-import { dokumentPrompt, kurzakte } from './prompt';
+import { dokumentPrompt, kurzakte, seitenInGrenze } from './prompt';
 import { jsonAus, klartextVerdacht, vorschlagAus } from './antwort';
 import { kostenCent, limitstand, preisAus } from './kosten';
 
@@ -14,10 +14,18 @@ describe('Prompt', () => {
     expect(p).toContain('=== Seite 1 ===\nPolice für [Vater]');
     expect(p).not.toMatch(/geheim|notiz|"beitrag":120/);
   });
-  it('kürzt sehr lange Texte und sagt das dazu', () => {
-    const p = dokumentPrompt([{ nr: 1, text: 'x'.repeat(170000) }, { nr: 2, text: 'y'.repeat(20000) }], { firmen: [], vertraege: [], dinge: [] }, '2026-11-15', 0);
+  it('kürzt sehr lange Texte und sagt das dazu; 150 dichte Seiten passen', () => {
+    const seite = (nr: number) => ({ nr, text: 'x'.repeat(3900) });
+    expect(seitenInGrenze(Array.from({ length: 150 }, (_, i) => seite(i + 1)))).toBe(150);
+    const lang = Array.from({ length: 200 }, (_, i) => seite(i + 1));
+    const n = seitenInGrenze(lang);
+    expect(n).toBeGreaterThan(150);
+    expect(n).toBeLessThan(200);
+    const p = dokumentPrompt(lang, { firmen: [], vertraege: [], dinge: [] }, '2026-11-15', 0);
     expect(p).toContain('Der Text ist gekürzt');
-    expect(p).not.toContain('=== Seite 2 ===');
+    expect(p).toContain(`=== Seite ${n} ===`);
+    expect(p).not.toContain(`=== Seite ${n + 1} ===`);
+    expect(dokumentPrompt([seite(1)], { firmen: [], vertraege: [], dinge: [] }, '2026-11-15', 0)).not.toContain('gekürzt');
   });
 });
 
