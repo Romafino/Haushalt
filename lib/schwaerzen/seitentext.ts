@@ -27,12 +27,17 @@ const DATUM = /^(\d{1,2}\.\s?\d{1,2}\.\s?(\d{2}|\d{4})|\d{4}-\d{2}-\d{2})$/;
 /* Beträge im deutschen Tausenderformat (65.000 / 1.200.000) bleiben stehen: Versicherungssummen braucht der Steckbrief.
    Nummern mit Bezeichnung („Vers.-Nr. 12.345.678“) fängt musterBereiche über die Bezeichnung. */
 const BETRAG = /^\d{1,3}(\.\d{3})+$/;
+/* Monat/Jahr und Zeiträume bleiben stehen (Tarifstand „10/2026“, „01.2026“, „2026/2027“, „2026-10“). Bewusst ergänzt 16.11.2026. */
+const MONAT_JAHR = /^((0?[1-9]|1[0-2])[./]\s?(19|20)\d{2}|(19|20)\d{2}[/-]((0?[1-9]|1[0-2])|(19|20)\d{2}))$/;
+/* Zahl mit Einheit dahinter ist ein Wert, keine Nummer: Betrag (€, EUR, Euro), Zählerstand/Leistung (kWh, km, m³, qm, PS, kW, l). */
+const EINHEIT_DANACH = /^\s?(€|eur\b|euro\b|kwh\b|km\b|m³|m3\b|m²|qm\b|ps\b|kw\b|l\b|liter\b)/i;
 const TELEFON_DAVOR = /(tel|telefon|fax|hotline|service|ruf|mobil)[\s.:/-]*(\+?\d[\d\s/-]*)?$/i;
 export function nummernTreffer(text: string): { start: number; ende: number }[] {
   return (treffer(text, [], { ziffern: true }) as { start: number; ende: number }[]).filter((t) => {
     const wert = text.slice(t.start, t.ende).trim();
     const davor = text.slice(Math.max(0, t.start - 24), t.start).split('\n').pop() ?? '';
-    return !DATUM.test(wert) && !BETRAG.test(wert) && !TELEFON_DAVOR.test(davor);
+    const danach = text.slice(t.ende, t.ende + 8);
+    return !DATUM.test(wert) && !BETRAG.test(wert) && !MONAT_JAHR.test(wert) && !EINHEIT_DANACH.test(danach) && !TELEFON_DAVOR.test(davor);
   });
 }
 
@@ -57,6 +62,8 @@ export function musterBereiche(text: string): { start: number; ende: number; lab
 const ANREDE_ZEILE = /^(herrn?|frau|familie|eheleute)$/i;
 const STRASSE = /^[A-ZÄÖÜ][^\d]{2,}\s\d{1,4}\s?[a-zA-Z]?(\s*[-/]\s*\d{1,4}[a-zA-Z]?)?$/;
 const PLZ_ORT = /^\d{5}\s+[A-ZÄÖÜ]/;
+const FIRMA = /\b(AG|GmbH|mbH|KG|KGaA|SE|e\.\s?V\.|VVaG|Versicherung\w*|Versicherungsservice|Sparkasse|Bank|Stadtwerke|Kundenservice|Service|Postfach)\b/i;
+const KONTAKT = /\b(tel|telefon|fax|e-?mail|hotline)\b|www\.|@/i;
 export function anschriftZeilen(zeilenTexte: string[]): { index: number; label: string }[] {
   const out: { index: number; label: string }[] = [];
   zeilenTexte.forEach((t, i) => {
@@ -67,9 +74,13 @@ export function anschriftZeilen(zeilenTexte: string[]): { index: number; label: 
       if (STRASSE.test(z) || PLZ_ORT.test(z)) out.push({ index: j, label: '[Adresse]' }); else break;
     }
   });
-  // auch ohne Anrede: Straßenzeile direkt über „PLZ Ort“ ist eine Anschrift
+  // auch ohne Anrede: Straße direkt über „PLZ Ort“ ist eine Anschrift – außer bei erkennbaren Firmenanschriften:
+  // Firmenname direkt darüber oder Telefon/Fax/E-Mail in den zwei Zeilen darunter. Steht direkt darüber ein geschwärzter
+  // Name (Platzhalter), ist es immer die Anschrift der Familie. Datenschutz geht vor: im Zweifel schwärzen.
   zeilenTexte.forEach((t, i) => {
     if (i + 1 >= zeilenTexte.length || !STRASSE.test(t.trim()) || !PLZ_ORT.test(zeilenTexte[i + 1].trim())) return;
+    const darueber = (zeilenTexte[i - 1] ?? '').trim(), danach = zeilenTexte.slice(i + 2, i + 4).join(' ');
+    if (!/^\[[^\]]+\]$/.test(darueber) && (FIRMA.test(darueber) || KONTAKT.test(danach))) return;
     for (const index of [i, i + 1]) if (!out.some((o) => o.index === index)) out.push({ index, label: '[Adresse]' });
   });
   return out;

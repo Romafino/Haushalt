@@ -97,4 +97,25 @@ describe('Anschriftenfeld ohne Schwärzliste', () => {
     const b = autoBalken(st, []);
     expect(seitenText(st, b, [])).toBe('Herrn\n[Name]\n[Adresse]\n[Adresse]\nHausrat');
   });
+
+  it('Monat/Jahr, Zeiträume und Werte mit Einheit bleiben stehen; echte Nummern nicht', () => {
+    const n = (s: string) => nummernTreffer(s).map((x) => s.slice(x.start, x.ende));
+    expect(n('Kfz-Tarif 10/2026')).toEqual([]);
+    expect(n('Bedingungen Stand 01/2026 und 10.2026')).toEqual([]);
+    expect(n('gültig 2026/2027, Tarif 2026-10')).toEqual([]);
+    expect(n('Summe 65000 € oder 65000 EUR')).toEqual([]);
+    expect(n('Zählerstand 12345 kWh, Laufleistung 15000 km')).toEqual([]);
+    expect(n('Vertragsnummer 123456789')).toEqual(['123456789']);
+    expect(n('Kunde 4711081500 seit 10/2026')).toEqual(['4711081500']);
+    expect(n('Code 13/2026')).toEqual(['13/2026']); // kein Monat
+  });
+
+  it('Firmenanschrift (Firmenname darüber oder Telefon/Fax darunter) wird nicht als Anschrift geschwärzt', () => {
+    expect(anschriftZeilen(['Versicherungsservice der', 'Musterstadt Sparkasse', 'Erika Beispiel', 'Neue Allee 47', '12345 Musterstadt', 'Fax 0123 456-78'])).toEqual([]);
+    expect(anschriftZeilen(['Beispiel Versicherung AG', 'Musterweg 5', '12345 Musterstadt'])).toEqual([]);
+    // geschwärzter Name direkt darüber: immer Familie, auch mit Kontaktzeile darunter
+    expect(anschriftZeilen(['[Name]', 'Musterweg 5', '12345 Musterstadt', 'Tel. privat'])).toEqual([{ index: 1, label: '[Adresse]' }, { index: 2, label: '[Adresse]' }]);
+    expect(anschriftZeilen(['Kundenbrief', '[Name]', 'Musterweg 5', '12345 Musterstadt', 'Versicherungsschein'])).toEqual([{ index: 2, label: '[Adresse]' }, { index: 3, label: '[Adresse]' }]);
+    expect(anschriftZeilen(['Beispiel Versicherung AG · Postfach 1', 'Herrn', 'Max Mustermann', 'Musterweg 5', '12345 Musterstadt'])).toEqual([{ index: 2, label: '[Name]' }, { index: 3, label: '[Adresse]' }, { index: 4, label: '[Adresse]' }]);
+  });
 });
