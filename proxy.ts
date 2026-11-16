@@ -7,5 +7,5 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   // Nicht für statische Dateien und Bilder.
-  matcher: ["/((?!_next/static|_next/image|vendor/|favicon.ico|sw.js|notfall.html|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)"],
+  matcher: ["/((?!_next/static|_next/image|vendor/|favicon.ico|sw.js|notfall.html|sicherung-oeffnen.html|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)"],
 };
