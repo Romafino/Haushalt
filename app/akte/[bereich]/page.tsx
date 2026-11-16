@@ -1,5 +1,6 @@
 "use client";
 import { Suspense } from "react";
+import { TerminVorlagen } from "@/components/akte/terminvorlagen";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useAkte } from "@/lib/akte/useAkte";
@@ -13,7 +14,7 @@ const euro = (n: number) => n.toLocaleString("de-DE", { style: "currency", curre
 function Liste() {
   const { bereich } = useParams<{ bereich: string }>();
   const def = BEREICHE[bereich];
-  const { akte, fehler } = useAkte();
+  const { akte, fehler, haushaltId, neuLaden } = useAkte();
 
   if (!def) return <main className="seite"><Kopf /><p className="fehler">Diesen Bereich gibt es nicht.</p></main>;
   return (
@@ -25,6 +26,7 @@ function Liste() {
       </div>
       {fehler && <p className="fehler" role="alert">{fehler}</p>}
       {!akte && !fehler && <p className="leise">Wird geladen …</p>}
+      {akte && bereich === "termine" && haushaltId && <TerminVorlagen akte={akte} haushaltId={haushaltId} onAngelegt={neuLaden} />}
       {akte && <Inhalt bereich={bereich} akte={akte} />}
     </main>
   );
