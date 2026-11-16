@@ -6,7 +6,8 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Kopf } from "@/components/akte/kopf";
 import { useSchwaerzliste } from "@/components/schwaerzliste/kontext";
 import { useAkte } from "@/lib/akte/useAkte";
-import { fragen, type FrageErgebnis } from "@/lib/geraet/frage";
+import { fragen, frageSpeichern, tochterFassung, type FrageErgebnis } from "@/lib/geraet/frage";
+import { GespeicherteFragen } from "@/components/gespeicherte-fragen";
 import { zurueckuebersetzen } from "@/lib/ki/frage";
 import { frageHolen } from "@/lib/geraet/frage-entwurf";
 import * as R from "@/lib/regeln";
@@ -20,6 +21,10 @@ export default function Frage() {
   const [erg, setErg] = useState<FrageErgebnis | null>(null);
   const [namen, setNamen] = useState(true);
   const [kopiert, setKopiert] = useState(false);
+  const [tochter, setTochter] = useState<{ text: string; warnung?: string } | null>(null);
+  const [tochterLaeuft, setTochterLaeuft] = useState(false);
+  const [gespeichert, setGespeichert] = useState(false);
+  const [neuGeladen, setNeuGeladen] = useState(0);
 
   useEffect(() => {
     if (sl.zustand === "unbekannt") void sl.pruefen();
@@ -28,7 +33,7 @@ export default function Frage() {
   async function starten(text: string) {
     if (!akte || !haushaltId || status) return;
     if (text.trim().length < 3) return setFehler("Bitte eine Frage eingeben.");
-    setFehler(""); setErg(null); setKopiert(false);
+    setFehler(""); setErg(null); setKopiert(false); setTochter(null); setGespeichert(false);
     try {
       setErg(await fragen(haushaltId, text, sl.liste, akte, setStatus));
     } catch (err) {
@@ -97,11 +102,35 @@ export default function Frage() {
               <span key={g.dokumentId}>{i > 0 && "; "}<Link href={`/dokumente/${g.dokumentId}`}>{g.titel}</Link> S. {g.seiten.join(", ")}</span>
             )) : "nur Einträge und Steckbriefe"}.
           </p>
-          <label className="janein"><input type="checkbox" checked={namen} onChange={(e) => setNamen(e.target.checked)} /><span>Namen statt Platzhalter anzeigen (nur auf diesem Gerät)</span></label>
+          <label className="janein"><input type="checkbox" checked={namen} onChange={(e) => setNamen(e.target.checked)} /><span>Namen statt Platzhalter anzeigen und kopieren (nur auf diesem Gerät)</span></label>
           <button type="button" className="zweitrangig" onClick={async () => { try { await navigator.clipboard.writeText(anzeige); setKopiert(true); } catch { setKopiert(false); } }}>{kopiert ? "Kopiert" : "Text kopieren"}</button>
+          <div className="aktionen">
+            <button type="button" className="zweitrangig" disabled={tochterLaeuft || !!tochter} onClick={async () => {
+              if (!haushaltId) return;
+              setTochterLaeuft(true); setFehler("");
+              try { const t = await tochterFassung(haushaltId, erg, sl.liste); setTochter(t); setErg({ ...erg, kostenCent: erg.kostenCent + t.kostenCent }); }
+              catch (err) { setFehler(err instanceof Error ? err.message : "Das hat nicht geklappt."); }
+              setTochterLaeuft(false);
+            }}>{tochterLaeuft ? "Wird umformuliert …" : "Für Tochter"}</button>
+            <button type="button" disabled={gespeichert} onClick={async () => {
+              if (!haushaltId) return;
+              const f = await frageSpeichern(haushaltId, erg, tochter?.text ?? null, sl.liste);
+              if (f) setFehler(f); else { setGespeichert(true); setNeuGeladen((n) => n + 1); }
+            }}>{gespeichert ? "In der Akte" : "Zur Akte"}</button>
+          </div>
+          {tochter && (
+            <div className="karte">
+              <h3>Für Tochter</h3>
+              {tochter.warnung && <p className="fehler">{tochter.warnung}</p>}
+              <p style={{ whiteSpace: "pre-wrap" }}>{namen ? zurueckuebersetzen(tochter.text, sl.liste) : tochter.text}</p>
+              <button type="button" className="zweitrangig" onClick={() => navigator.clipboard.writeText(namen ? zurueckuebersetzen(tochter.text, sl.liste) : tochter.text).catch(() => {})}>Text kopieren{namen ? " (mit Namen)" : " (mit Platzhaltern)"}</button>
+            </div>
+          )}
+          <p className="leise">Gespeichert wird nur die Fassung mit Platzhaltern.</p>
           <p className="leise">Kosten dieser Frage: {(erg.kostenCent / 100).toLocaleString("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 3 })}</p>
         </section>
       )}
+      {haushaltId && <GespeicherteFragen haushaltId={haushaltId} liste={sl.liste} namen={namen} neu={neuGeladen} />}
       <p className="leise">An die KI gehen nur Platzhalter-Fassungen: Einträge, Steckbriefe und einzelne geschwärzte Textseiten, nie das Original. Ohne Gewähr; „nicht gefunden“ heißt unklar. Keine Rechts-, Steuer- oder Abschlussberatung.</p>
     </main>
   );
