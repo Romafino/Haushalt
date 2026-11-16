@@ -12,6 +12,7 @@ import { dokumentSpeichern } from "@/lib/geraet/speichern";
 import { autoBalken, seitenText } from "@/lib/schwaerzen/seitentext";
 import { freitextPruefen } from "@/lib/akte/freitext";
 import { kiAuslesen, type KiAntwort } from "@/lib/geraet/ki";
+import { seitenInGrenze } from "@/lib/ki/prompt";
 import { dublettenSuchen, type Dublette } from "@/lib/geraet/dubletten";
 import { startAuswahl, uebernahme, type Auswahl } from "@/lib/ki/uebernahme";
 import { VorschlagPruefen } from "@/components/dokument/vorschlag";
@@ -52,6 +53,8 @@ export default function DokumentNeu() {
     if (sl.zustand === "unbekannt") void sl.pruefen();
   }, [sl]);
 
+  // Wie viele Seiten liest die KI (Textgrenze)? Vorab anzeigen, damit es keine Überraschung gibt.
+  const kiSeiten = useMemo(() => (seiten ? seitenInGrenze(seiten.map((x, i) => ({ nr: i + 1, text: seitenText(x.stuecke, x.balken, sl.liste) }))) : 0), [seiten, sl.liste]);
   const labels = useMemo(() => Array.from(new Set([...sl.liste.map((e) => e.ersatz), "[Name]", "[Adresse]", "[Nummer]", "[geschwärzt]"])), [sl.liste]);
 
   async function laden(files: FileList | File[] | null) {
@@ -186,6 +189,9 @@ export default function DokumentNeu() {
           <section className="karte">
             <h2>Mit KI auslesen</h2>
             <p className="leise">Sendet nur die geschwärzten Seiten (Bild und Text) an die KI. Sie schlägt Angaben, Vertrag, Firma, Ereignis und Steckbrief vor; du bestätigst. Kosten je Dokument nur wenige Cent [prüfen], Monatslimit {Number(akte?.einst.kiLimitEuro ?? 10)} €.</p>
+            {!ki && seiten && kiSeiten < seiten.length && (
+              <p className="fehler">Sehr langes Dokument: Die KI liest nur Seite 1 bis {kiSeiten} von {seiten.length}. Gespeichert und durchsuchbar werden alle Seiten. Für eine vollständige Auswertung den Rest als eigenes Dokument aufnehmen.</p>
+            )}
             {!ki && <button type="button" onClick={auslesen} disabled={!!status || !akte}>Mit KI auslesen</button>}
             {ki && (
               <p className={ki.limit?.warnung ? "fehler" : "leise"}>

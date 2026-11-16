@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
   const haushaltId = String(e.haushaltId ?? "");
   const seiten = Array.isArray(e.seiten) ? e.seiten : [];
   const bilder = Array.isArray(e.bilder) ? e.bilder : [];
-  if (!UUID.test(haushaltId) || !seiten.length || seiten.length > 60 || bilder.length > 6) return fehler(400, "Ungültige Anfrage.");
+  if (!UUID.test(haushaltId) || !seiten.length || seiten.length > 300 || bilder.length > 6) return fehler(400, "Ungültige Anfrage.");
   const texte = seiten.map((s, i) => ({ nr: Number(s.nr) || i + 1, text: typeof s.text === "string" ? s.text.slice(0, 20000) : "" }));
   if (!bilder.every((b) => typeof b === "string" && b.length < 1_000_000 && B64.test(b))) return fehler(400, "Ungültige Bilder.");
 
