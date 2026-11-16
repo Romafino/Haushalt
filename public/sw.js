@@ -1,6 +1,6 @@
 /* Service Worker: Push-Nachrichten anzeigen und die Notfallseite (Sofortmaßnahmen, Hotlines) offline bereithalten.
    Zwischengespeichert wird nur die statische Seite /notfall.html; die Hotlines liegen im Speicher des Geräts (localStorage). */
-const CACHE = "notfall-v1";
+const CACHE = "notfall-v2";
 self.addEventListener("install", (e) => e.waitUntil(caches.open(CACHE).then((c) => c.add("/notfall.html")).then(() => self.skipWaiting())));
 self.addEventListener("activate", (e) => e.waitUntil(caches.keys().then((k) => Promise.all(k.filter((x) => x !== CACHE).map((x) => caches.delete(x))))
   .then(() => self.clients.claim())));

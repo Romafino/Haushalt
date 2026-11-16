@@ -26,6 +26,8 @@
   <p class="leise warn" id="offline" hidden>Keine Verbindung – angezeigt wird der zuletzt gespeicherte Stand.</p>
   <section class="karte"><h2>Sofortmaßnahmen</h2><ol id="sofort"></ol></section>
   <section class="karte"><h2>Hotlines</h2><div id="hotlines" style="display:grid;gap:.5rem"></div></section>
+  <section class="karte" id="vertraegeBox" hidden><h2>Verträge und Ablageort</h2><div id="vertraege" style="display:grid;gap:.6rem"></div></section>
+  <section class="karte" id="fristenBox" hidden><h2>Nächste Fristen</h2><div id="fristen" style="display:grid;gap:.3rem"></div></section>
   <p class="leise" id="stand"></p>
   <p class="leise"><a href="/schaden">Zum Schadenfall in der App</a></p>
 </main>
@@ -43,6 +45,21 @@
       var s = document.createElement('span'); s.textContent = x.vertrag + (x.firma ? ' · ' + x.firma : '');
       var n = document.createElement('strong'); n.textContent = x.nummer; a.appendChild(s); a.appendChild(n); h.appendChild(a);
     });
+    var fmt = function (iso) { return String(iso || '').split('-').reverse().join('.'); };
+    if (Array.isArray(d.vertraege) && d.vertraege.length) {
+      document.getElementById('vertraegeBox').hidden = false;
+      d.vertraege.forEach(function (v) {
+        var div = document.createElement('div'), b = document.createElement('strong'), p = document.createElement('div');
+        b.textContent = v.name + (v.firma ? ' · ' + v.firma : '');
+        p.className = 'leise';
+        p.textContent = [v.ablageort ? 'Original: ' + v.ablageort : '', v.frist ? 'Frist ' + fmt(v.frist.datum) + ': ' + v.frist.titel : ''].filter(Boolean).join(' · ') || '–';
+        div.appendChild(b); div.appendChild(p); document.getElementById('vertraege').appendChild(div);
+      });
+    }
+    if (Array.isArray(d.fristen) && d.fristen.length) {
+      document.getElementById('fristenBox').hidden = false;
+      d.fristen.forEach(function (f) { var p = document.createElement('div'); p.textContent = fmt(f.datum) + ' – ' + f.titel; document.getElementById('fristen').appendChild(p); });
+    }
     if (d.stand) document.getElementById('stand').textContent = 'Stand: ' + d.stand.split('-').reverse().join('.');
   })();
 </script>
