@@ -4,11 +4,18 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from "react";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 import { boxAnlegen, boxOeffnen, boxSchreiben, mitSchluessel, type Box, type ListenEintrag } from "@/lib/schwaerzen/liste";
+import { tresorAlsListe, tresorOeffnen, tresorVerschluesseln, type Tresor, type TresorBox } from "@/lib/schwaerzen/tresor";
 
 type Zustand = "unbekannt" | "laden" | "keine" | "gesperrt" | "offen" | "fehler";
 type Kontext = {
   zustand: Zustand;
+  /** Zum Schwärzen und Prüfen: Schwärzliste plus Nummern aus dem Tresor (als „[Nummer]“). */
   liste: ListenEintrag[];
+  /** Nur die Einträge der Schwärzliste (zum Bearbeiten). */
+  eigeneListe: ListenEintrag[];
+  /** Nummern-Tresor (gleicher Schlüssel wie die Schwärzliste), nur entsperrt gefüllt. */
+  nummern: Tresor;
+  nummernSpeichern: (t: Tresor) => Promise<string | null>;
   pruefen: () => Promise<void>;
   entsperren: (passwort: string, merken: boolean) => Promise<string | null>;
   anlegen: (passwort: string, liste: ListenEintrag[], merken: boolean) => Promise<string | null>;
@@ -53,7 +60,14 @@ async function keyVergessen(haushaltId: string) {
 export function SchwaerzlisteAnbieter({ children }: { children: ReactNode }) {
   const [zustand, setZustand] = useState<Zustand>("unbekannt");
   const [liste, setListe] = useState<ListenEintrag[]>([]);
+  const [nummern, setNummern] = useState<Tresor>({});
   const geheim = useRef<{ haushaltId: string; box: Box | null; key: CryptoKey | null }>({ haushaltId: "", box: null, key: null });
+
+  /** Tresor mit dem Schlüssel der Schwärzliste öffnen; fehlt er, ist er leer. */
+  const tresorLaden = useCallback(async (key: CryptoKey) => {
+    const r = await supabaseBrowser().from("nummern_tresor").select("v, iv, daten").eq("haushalt_id", geheim.current.haushaltId).maybeSingle();
+    try { setNummern(r.data ? await tresorOeffnen(key, r.data as TresorBox) : {}); } catch { setNummern({}); }
+  }, []);
 
   const pruefen = useCallback(async () => {
     setZustand("laden");
@@ -68,11 +82,11 @@ export function SchwaerzlisteAnbieter({ children }: { children: ReactNode }) {
     if (!box) { setListe([]); return setZustand("keine"); }
     const key = geheim.current.key ?? (await keyHolen(haushaltId, box.salz));
     if (key) {
-      try { setListe(await mitSchluessel(key, box)); geheim.current.key = key; return setZustand("offen"); } catch { /* anderes Passwort gesetzt */ }
+      try { setListe(await mitSchluessel(key, box)); geheim.current.key = key; await tresorLaden(key); return setZustand("offen"); } catch { /* anderes Passwort gesetzt */ }
     }
-    setListe([]);
+    setListe([]); setNummern({});
     setZustand("gesperrt");
-  }, []);
+  }, [tresorLaden]);
 
   const schreiben = useCallback(async (box: Box) => {
     const { error } = await supabaseBrowser().from("schwaerzliste").upsert({ haushalt_id: geheim.current.haushaltId, ...box }, { onConflict: "haushalt_id" });
@@ -87,12 +101,13 @@ export function SchwaerzlisteAnbieter({ children }: { children: ReactNode }) {
       geheim.current.key = key;
       if (merken) await keyMerken(geheim.current.haushaltId, key, box.salz);
       setListe(l);
+      await tresorLaden(key);
       setZustand("offen");
       return null;
     } catch (e) {
       return (e as { code?: string })?.code === "passwort" ? "Das Passwort passt nicht." : "Entsperren hat nicht geklappt.";
     }
-  }, []);
+  }, [tresorLaden]);
 
   const anlegen = useCallback(async (passwort: string, l: ListenEintrag[], merken: boolean) => {
     const { box, key } = await boxAnlegen(passwort, l);
@@ -101,7 +116,7 @@ export function SchwaerzlisteAnbieter({ children }: { children: ReactNode }) {
     geheim.current = { ...geheim.current, box, key };
     await keyVergessen(geheim.current.haushaltId);
     if (merken) await keyMerken(geheim.current.haushaltId, key, box.salz);
-    setListe(l);
+    setListe(l); setNummern({});
     setZustand("offen");
     return null;
   }, [schreiben]);
@@ -120,10 +135,22 @@ export function SchwaerzlisteAnbieter({ children }: { children: ReactNode }) {
   const sperren = useCallback(async (vergessen: boolean) => {
     if (vergessen) await keyVergessen(geheim.current.haushaltId);
     geheim.current.key = null;
-    setListe([]);
+    setListe([]); setNummern({});
     setZustand(geheim.current.box ? "gesperrt" : "keine");
   }, []);
 
-  const wert = useMemo(() => ({ zustand, liste, pruefen, entsperren, anlegen, speichern, sperren }), [zustand, liste, pruefen, entsperren, anlegen, speichern, sperren]);
+  const nummernSpeichern = useCallback(async (t: Tresor) => {
+    const { key, haushaltId } = geheim.current;
+    if (!key) return "Bitte zuerst die Schwärzliste entsperren.";
+    const box = await tresorVerschluesseln(key, t);
+    const { error } = await supabaseBrowser().from("nummern_tresor").upsert({ haushalt_id: haushaltId, ...box }, { onConflict: "haushalt_id" });
+    if (error) return "Speichern hat nicht geklappt.";
+    setNummern(t);
+    return null;
+  }, []);
+
+  const pruefliste = useMemo(() => [...liste, ...tresorAlsListe(nummern)], [liste, nummern]);
+  const wert = useMemo(() => ({ zustand, liste: pruefliste, eigeneListe: liste, nummern, nummernSpeichern, pruefen, entsperren, anlegen, speichern, sperren }),
+    [zustand, pruefliste, liste, nummern, nummernSpeichern, pruefen, entsperren, anlegen, speichern, sperren]);
   return <K.Provider value={wert}>{children}</K.Provider>;
 }

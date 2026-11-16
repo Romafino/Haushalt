@@ -13,7 +13,7 @@ export const FELDER = {
     kurzname: 'kurzname', art: 'art', firmaId: 'firma_id', status: 'status', beitrag: 'beitrag', zahlweise: 'zahlweise',
     laufzeitende: 'laufzeitende', erstlaufzeitEnde: 'erstlaufzeit_ende', fristWert: 'frist_wert', fristEinheit: 'frist_einheit',
     verlaengerung: 'verlaengerung', abschluss: 'abschluss', beginn: 'beginn', kuendigungsweg: 'kuendigungsweg', online: 'online',
-    gekuendigtAm: 'gekuendigt_am', gekuendigtZum: 'gekuendigt_zum', bestaetigt: 'bestaetigt', ersetztDurchId: 'ersetzt_durch_id', notiz: 'notiz',
+    gekuendigtAm: 'gekuendigt_am', gekuendigtZum: 'gekuendigt_zum', bestaetigt: 'bestaetigt', ersetztDurchId: 'ersetzt_durch_id', notiz: 'notiz', ablageort: 'ablageort',
   },
   fassungen: {
     vertragId: 'vertrag_id', gueltigVon: 'gueltig_von', gueltigBis: 'gueltig_bis', grund: 'grund', beitrag: 'beitrag', zahlweise: 'zahlweise',
@@ -31,7 +31,7 @@ export const FELDER = {
   ereignisse: { datum: 'datum', typ: 'typ', text: 'text', vertragId: 'vertrag_id', dingId: 'ding_id', dokumentId: 'dokument_id', schadenId: 'schaden_id' },
   dokumente: {
     typ: 'typ', titel: 'titel', datum: 'datum', gueltigVon: 'gueltig_von', gueltigBis: 'gueltig_bis', vertragId: 'vertrag_id', dingId: 'ding_id',
-    firmaId: 'firma_id', seiten: 'seiten', quelle: 'quelle', datenschutz: 'datenschutz', steckbrief: 'steckbrief',
+    firmaId: 'firma_id', seiten: 'seiten', quelle: 'quelle', datenschutz: 'datenschutz', steckbrief: 'steckbrief', ablageort: 'ablageort',
   },
 } as const;
 export type Tabelle = keyof typeof FELDER;

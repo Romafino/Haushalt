@@ -1,6 +1,8 @@
 "use client";
 /* Ereignis an einem Vertrag eintragen: Eingabe → Vorschau der Folgen (Regelmodul) → in einer Transaktion übernehmen. */
 import { useState } from "react";
+import { useSchwaerzliste } from "@/components/schwaerzliste/kontext";
+import { mitKundennummer } from "@/lib/schwaerzen/tresor";
 import type { Akte, Eintrag } from "@/lib/akte/abbilden";
 import { opsUebersetzen } from "@/lib/akte/ops";
 import { opsAnwenden } from "@/lib/akte/useAkte";
@@ -120,15 +122,17 @@ export function EreignisEintragen({ v, S, haushaltId, onGeaendert }: { v: Eintra
 
 export function Kuendigungsentwurf({ v, S }: { v: Eintrag; S: Akte }) {
   const [kopiert, setKopiert] = useState(false);
+  const sl = useSchwaerzliste();
   if (v.status !== "aktiv") return null;
   const heute: string = R.heute();
   const firma = S.firmen.find((f) => f.id === v.firmaId);
   const vorlage = (S.einst.texte as Record<string, unknown> | undefined)?.kuendigung;
-  const text: string = R.kuendigungsText(v, firma, heute, vorlage);
+  // [Kundennummer] füllt der Tresor – nur hier auf dem Gerät, der Text wird nicht gespeichert
+  const text: string = mitKundennummer(R.kuendigungsText(v, firma, heute, vorlage), sl.nummern[v.id]);
   return (
     <details className="karte">
       <summary>Kündigungsentwurf</summary>
-      <p className="leise">[Name], [Adresse] und [Kundennummer] selbst einsetzen. Es zählt der Zugang beim Anbieter, Versand mit Nachweis.{v.online ? " Online abgeschlossen: Der Anbieter muss einen Kündigungsbutton anbieten." : ""}</p>
+      <p className="leise">[Name] und [Adresse]{text.includes("[Kundennummer]") ? " und [Kundennummer]" : ""} selbst einsetzen. Es zählt der Zugang beim Anbieter, Versand mit Nachweis.{v.online ? " Online abgeschlossen: Der Anbieter muss einen Kündigungsbutton anbieten." : ""}</p>
       <textarea readOnly rows={14} value={text} />
       <button type="button" className="zweitrangig" onClick={async () => { await navigator.clipboard.writeText(text); setKopiert(true); }}>{kopiert ? "Kopiert" : "Text kopieren"}</button>
     </details>

@@ -7,6 +7,7 @@ import { useAkte } from "@/lib/akte/useAkte";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 import { fotoHochladen } from "@/lib/geraet/schaden";
 import { PruefungKarte } from "@/components/schaden/pruefung";
+import { TresorNummern } from "@/components/tresor-nummern";
 import { STATUS_SCHADEN } from "@/components/schaden/status";
 import { useSchwaerzliste } from "@/components/schwaerzliste/kontext";
 import { zurueckuebersetzen } from "@/lib/ki/frage";
@@ -83,6 +84,8 @@ function SchadenFall() {
           </select>
         </label>
       </section>
+
+      <TresorNummern bezugId={id} vorschlag="Schadennummer" />
 
       <h2>Prüfung je Police</h2>
       {!pruef.length && <p className="leise">Am Schadentag war keine Versicherung in Kraft oder es wurde nichts geprüft.</p>}
