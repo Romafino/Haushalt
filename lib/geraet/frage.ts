@@ -11,7 +11,7 @@ import { frageKontext, frageVerzeichnis, stichtagAus, verweise, type FrageSeite 
 import type { Akte, Eintrag } from "@/lib/akte/abbilden";
 import * as R from "@/lib/regeln";
 
-export type FrageErgebnis = { antwort: string; stichtag: string; gelesen: { dokumentId: string; titel: string; nr: number }[]; kostenCent: number; warnung?: string };
+export type FrageErgebnis = { frage: string; antwort: string; stichtag: string; gelesen: { dokumentId: string; titel: string; nr: number }[]; kostenCent: number; warnung?: string };
 
 async function senden(body: Record<string, unknown>) {
   const r = await fetch("/api/ki/frage", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -70,5 +70,24 @@ export async function fragen(haushaltId: string, frageRoh: string, liste: Listen
     warnung = "Achtung: Die Antwort enthielt Angaben aus eurer Schwärzliste. Die Stellen wurden ersetzt; bitte die gespeicherten Seiten prüfen.";
     antwort = anonymisieren(antwort, liste).text;
   }
-  return { antwort, stichtag, gelesen: roh.map((x) => ({ dokumentId: x.dokument_id, titel: titel(x.dokument_id), nr: x.nr })), kostenCent: kosten, warnung };
+  return { frage, antwort, stichtag, gelesen: roh.map((x) => ({ dokumentId: x.dokument_id, titel: titel(x.dokument_id), nr: x.nr })), kostenCent: kosten, warnung };
+}
+
+/** „Für Tochter“: zweiter Aufruf mit der geschwärzten Frage und Antwort; Ergebnis wieder gegen die Liste geprüft. */
+export async function tochterFassung(haushaltId: string, erg: FrageErgebnis, liste: ListenEintrag[]): Promise<{ text: string; kostenCent: number; warnung?: string }> {
+  const j = await senden({ haushaltId, schritt: "tochter", frage: erg.frage, antwort: erg.antwort });
+  let text = textSauber(String(j.antwort ?? ""));
+  let warnung: string | undefined;
+  if (listenTreffer(text, liste).length) { warnung = "Die Umformulierung enthielt Angaben aus der Schwärzliste; sie wurden ersetzt."; text = anonymisieren(text, liste).text; }
+  return { text, kostenCent: Number(j.kostenCent) || 0, warnung };
+}
+
+/** „Zur Akte“: nur Platzhalter-Fassung speichern. */
+export async function frageSpeichern(haushaltId: string, erg: FrageErgebnis, tochter: string | null, liste: ListenEintrag[]): Promise<string | null> {
+  const weg = (t: string) => textSauber(anonymisieren(t, liste).text);
+  const { error } = await supabaseBrowser().from("fragen").insert({
+    haushalt_id: haushaltId, frage: weg(erg.frage), antwort: weg(erg.antwort), tochter: tochter ? weg(tochter) : null, stichtag: erg.stichtag,
+    quellen: erg.gelesen.map((g) => ({ dokumentId: g.dokumentId, nr: g.nr })),
+  });
+  return error ? "Konnte nicht gespeichert werden." : null;
 }

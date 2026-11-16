@@ -1,6 +1,6 @@
 /* Frag die Akte: Stichtag, Verweise, Prompt-Regeln, Platzhalter zurück, Server-Sperre. Erfundene Daten. */
 import { describe, expect, it } from 'vitest';
-import { antwortPrompt, auswahlPrompt, frageKontext, frageVerzeichnis, stichtagAus, verweise, zurueckuebersetzen } from './frage';
+import { antwortPrompt, auswahlPrompt, tochterPrompt, frageKontext, frageVerzeichnis, stichtagAus, verweise, zurueckuebersetzen } from './frage';
 import { klartextVerdacht, textSauber } from './antwort';
 
 const H = '2026-11-15';
@@ -35,6 +35,15 @@ describe('Frag die Akte', () => {
     expect(p).toContain('=== Dokument „Hausrat 2026“, Seite 2 ===');
     expect(p).toContain('nicht raten');
     expect(auswahlPrompt('x?', [], H)).toContain('Beantworte die Frage NICHT');
+  });
+
+  it('Für Tochter: ohne Kosten und übrige Familie, Platzhalter bleiben, Quellen behalten', () => {
+    const p = tochterPrompt('Ist [Tochter] in der WG versichert?', 'Ja, Außenversicherung, Hausrat 2026, S. 2, § 7. Beitrag 120 €.');
+    expect(p).toContain('Beiträge und Kosten');
+    expect(p).toContain('Platzhalter in eckigen Klammern unverändert lassen');
+    expect(p).toContain('samt Quelle');
+    expect(p).toContain('keine Beratung');
+    expect(p).toContain('Hausrat 2026, S. 2, § 7');
   });
 
   it('Platzhalter → Namen nur für Rollen; allgemeine Platzhalter bleiben', () => {
