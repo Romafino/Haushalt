@@ -281,6 +281,7 @@ Fehlerfälle: kein Netz → Entwurf auf dem Gerät; KI nicht erreichbar oder Lim
 - **Format:** PDF oder Excel, zum Abtippen in die Steuererklärung oder zur Weitergabe an den Steuerberater.
 - **Hinweis:** Belege ohne unbare Zahlung oder ohne ausgewiesene Arbeitskosten werden markiert.
 - Anmerkung: Der lesbare Export enthält schon ein Blatt „§35a“ (Summen je Jahr und Art); der Steuerexport ergänzt die Einzelliste je Jahr und die Markierungen. Keine Steuerberatung (Regel 10).
+- **Umgesetzt (16.11.2026):** Seite „Steuer §35a“: Jahr wählen, Belege je Art mit Markierungen (nicht unbar, keine Arbeitskosten), Summen über `steuer35a()`; als PDF (Teilen/Drucken) oder Excel. Zuordnung nach Belegdatum; ob das Zahlungsjahr abweicht, prüft die Familie [prüfen].
 
 ### 13.5 Dublettenerkennung
 
