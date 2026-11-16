@@ -6,6 +6,7 @@ import { Kopf } from "@/components/akte/kopf";
 import { useAkte } from "@/lib/akte/useAkte";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 import { neuerSchluessel, schluesselHash } from "@/lib/akte/kalender";
+import { PushEinstellung } from "@/components/push-einstellung";
 
 export default function Kalender() {
   const { haushaltId, fehler: ladeFehler } = useAkte();
@@ -41,8 +42,10 @@ export default function Kalender() {
   return (
     <main className="seite">
       <Kopf zurueck="/" text="Übersicht" />
-      <h1>Kalender-Abo</h1>
+      <h1>Erinnerungen</h1>
+      <PushEinstellung haushaltId={haushaltId} />
       <section className="karte">
+        <h2>Kalender-Abo</h2>
         <p>Alle offenen Fristen und Termine erscheinen in deinem Kalender – ganztägig, mit Erinnerung um 9 Uhr, bei Kündigungsfristen zusätzlich Wochen vorher. Der Kalender holt Änderungen selbst ab.</p>
         <p className="leise">In den Kalender gehen nur Titel und Datum, keine Notizen. Wer den Link kennt, sieht diese Termine – nicht weitergeben.</p>
         {vorhanden === undefined && !fehler && !ladeFehler && <p className="leise">Wird geladen …</p>}

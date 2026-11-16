@@ -7,6 +7,7 @@ export const metadata: Metadata = {
   description: "Private Haushalts-App",
   robots: { index: false, follow: false },
   appleWebApp: { capable: true, title: "Haushalt", statusBarStyle: "default" },
+  icons: { apple: "/icons/apple-touch-icon.png" },
 };
 
 export const viewport: Viewport = {
