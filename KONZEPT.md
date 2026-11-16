@@ -205,7 +205,9 @@ Fehlerfälle: kein Netz → Entwurf auf dem Gerät; KI nicht erreichbar oder Lim
 
 **Entschieden (15.11.2026):** Entwicklung mit erfundenen Daten auf Supabase Free. Free oder Pro wird vor dem Umzug echter Daten entschieden.
 
-## 10. Umzug aus den Artefakten [noch nicht besprochen]
+## 10. Umzug aus den Artefakten
+
+**Entschieden (16.11.2026):** Kein Umzug. Die Daten der alten App waren nur Tests; die neue App startet leer. Die folgenden Punkte bleiben nur zur Information stehen.
 
 - Haushalts-App erzeugt eine **Datensicherung** (ZIP mit `sicherung.json`, Format 1: Sammlungen firmen, dinge, vertraege, fassungen, dokumente, belege, fristen, ereignisse, schadenfaelle, zaehler; Seiten je Dokument; Einstellungen; verschlüsselte Schwärzliste). Import-Skript in die neuen Tabellen nötig (IDs abbilden, Mehrfachbezüge, Steckbrief in eigene Tabelle).
 - Gespeicherte Originale aus der Artefakt-Dateiablage sind teilweise **ungeschwärzt** → **Entschieden (15.11.2026):** beim Umzug **nicht** übernehmen. Sie bleiben bei der Familie.
@@ -216,7 +218,7 @@ Fehlerfälle: kein Netz → Entwurf auf dem Gerät; KI nicht erreichbar oder Lim
 
 0. Hinweis Umsetzung: Schritt 6 (Schwärzliste) wurde vor Schritt 5 gezogen, damit beim Dokumenten-Upload Namen automatisch geschwärzt werden. Deutsche Volltextsuche zerlegt keine Komposita (z. B. findet „Einbruch“ nicht „Einbruchdiebstahl“) → in Schritt 8 berücksichtigen.
 
-1. Umzug: Zeitpunkt und Parallelbetrieb (in Schritt 9). Originale werden nicht übernommen (entschieden).
+1. ~~Umzug: Zeitpunkt und Parallelbetrieb~~ → **Entschieden (16.11.2026):** kein Umzug, Start mit leerer App.
 2. ~~Kaskade beim endgültigen Löschen~~ → entschieden (Abschnitt 6).
 3. Supabase Free oder Pro: vor dem Umzug echter Daten (bis dahin Free).
 4. Push auf iOS: technische Voraussetzungen prüfen.
@@ -234,4 +236,4 @@ Fehlerfälle: kein Netz → Entwurf auf dem Gerät; KI nicht erreichbar oder Lim
 6. Schwärzliste verschlüsselt, gemeinsames Passwort.
 7. Kalender-Abo, Push, Web-App-Manifest.
 8. Frag die Akte (Volltextsuche), Schadenfall.
-9. Umzug der Daten, Parallelbetrieb, Umstieg.
+9. ~~Umzug der Daten, Parallelbetrieb, Umstieg.~~ Entfällt (kein Umzug, 16.11.2026).
