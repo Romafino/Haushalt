@@ -11,7 +11,7 @@ import { dateiTeilen } from "@/lib/geraet/teilen";
 import { notfallMerken } from "@/lib/geraet/schaden";
 import * as R from "@/lib/regeln";
 
-function Tabelle({ titel, zeilen }: { titel: string; zeilen: Notfallblatt["versicherungen"] }) {
+function Tabelle({ titel, zeilen, ausgeblendet }: { titel: string; zeilen: Notfallblatt["versicherungen"]; ausgeblendet: Set<string> }) {
   if (!zeilen.length) return null;
   return (
     <section className="karte druck-karte">
@@ -22,7 +22,8 @@ function Tabelle({ titel, zeilen }: { titel: string; zeilen: Notfallblatt["versi
           {zeilen.map((z) => (
             <tr key={z.id || z.name}>
               <td><strong>{z.name}</strong>{z.fuerWen ? <><br /><span className="leise">für {z.fuerWen}</span></> : null}{z.bezug ? <><br /><span className="leise">{z.bezug}</span></> : null}
-                {z.nummern.map((x) => <div key={x} className="leise">{x}</div>)}</td>
+                {z.nummern.map((x) => <div key={x} className="leise">{x}</div>)}
+                {ausgeblendet.has(z.id) && <div className="leise nicht-drucken">Nummer im Tresor – zum Anzeigen oben „Nummern aus dem Tresor anzeigen“ einschalten</div>}</td>
               <td>{z.firma}{z.hotline ? <><br /><a href={"tel:" + z.hotline.replace(/[^\d+]/g, "")}>{z.hotline}</a></> : null}</td>
               <td>{z.ablageort || <span className="leise">–</span>}</td>
               <td>{z.frist ? <>{R.fmt(z.frist.datum)}<br /><span className="leise">{z.frist.titel}</span></> : <span className="leise">–</span>}</td>
@@ -42,6 +43,8 @@ export default function NotfallblattSeite() {
   useEffect(() => { if (sl.zustand === "unbekannt") void sl.pruefen(); }, [sl]);
   useEffect(() => { if (akte) notfallMerken(akte); }, [akte]);
   const nummernAn = mitNummern && sl.zustand === "offen";
+  // Verträge mit Nummern im Tresor, solange die Nummern ausgeblendet sind (Hinweis statt Nummer)
+  const ausgeblendet = new Set(sl.zustand === "offen" && !nummernAn ? Object.keys(sl.nummern).filter((k) => sl.nummern[k]?.length) : []);
   const n = akte ? notfallblatt(akte, R.heute(), nummernAn ? sl.nummern : undefined) : null;
 
 
@@ -51,6 +54,7 @@ export default function NotfallblattSeite() {
       <h1>Notfallblatt</h1>
       <section className="karte nicht-drucken">
         <p className="leise">Für den Papierordner oder eine Vertrauensperson: alle laufenden Verträge mit Anbieter, Hotline, Ablageort und nächster Frist. Ohne Beträge und ohne Nummern – unkritisch zum Ausdrucken. Auf diesem Gerät ist es auch ohne Internet erreichbar (Notfallseite).</p>
+        {sl.zustand !== "offen" && <p className="leise">Nummern aus dem Tresor: zum Anzeigen zuerst die <a href="/schwaerzliste">Schwärzliste entsperren</a>.</p>}
         {sl.zustand === "offen" && (
           <label className="janein"><input type="checkbox" checked={mitNummern} onChange={(e) => setMitNummern(e.target.checked)} /><span>Nummern aus dem Tresor anzeigen (nicht ausdrucken und nicht weitergeben)</span></label>
         )}
@@ -75,8 +79,8 @@ export default function NotfallblattSeite() {
             <h2>Im Schadenfall zuerst</h2>
             <ol className="punkte" style={{ listStyle: "decimal" }}>{n.sofort.map((t) => <li key={t}>{t}</li>)}</ol>
           </section>
-          <Tabelle titel="Versicherungen" zeilen={n.versicherungen} />
-          <Tabelle titel="Weitere Verträge" zeilen={n.vertraege} />
+          <Tabelle titel="Versicherungen" zeilen={n.versicherungen} ausgeblendet={ausgeblendet} />
+          <Tabelle titel="Weitere Verträge" zeilen={n.vertraege} ausgeblendet={ausgeblendet} />
           {n.firmen.length > 0 && (
             <section className="karte druck-karte">
               <h2>Weitere Kontakte</h2>
