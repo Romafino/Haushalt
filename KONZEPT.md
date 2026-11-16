@@ -32,7 +32,7 @@ Oberfläche: mobil zuerst (iPhone), außerdem Mac. Deutsch, ruhig und übersicht
    - **Ausnahme (Entschieden):** Fotos vom Schaden (Schadenfall) dürfen ungeschwärzt in der Dateiablage liegen. Sie gehen **nie** an eine KI.
 5. **Schwärzliste** (echte Namen, Anschrift, Telefon, E-Mail → Platzhalter): liegt auf dem Server **nur verschlüsselt** (PBKDF2-SHA256 + AES-GCM, im Browser ver- und entschlüsselt). **Entschieden:** ein **gemeinsames Passwort** für beide Eltern. Das Passwort verlässt nie das Gerät.
 6. **Nicht gespeichert werden** Vertrags-, Kunden-, Versicherungs-, Schaden- und Rechnungsnummern, IBAN, Geburtsdaten, Ausweisdaten.
-   - **Ausnahme (Entschieden 16.11.2026): Nummern-Tresor.** Vertrags-, Kunden-, Versicherungs- und Schadennummern dürfen **nur** im verschlüsselten Nummern-Tresor stehen (Muster Schwärzliste, Abschnitt 13.1): im Browser ver- und entschlüsselt, nie im Klartext in Datenbank, Logs, Tests oder Commits, **nie an eine KI**. IBAN, Geburts- und Ausweisdaten bleiben ausgeschlossen [offen: IBAN auch in den Tresor?].
+   - **Ausnahme (Entschieden 16.11.2026): Nummern-Tresor.** Vertrags-, Kunden-, Versicherungs- und Schadennummern dürfen **nur** im verschlüsselten Nummern-Tresor stehen (Muster Schwärzliste, Abschnitt 13.1): im Browser ver- und entschlüsselt, nie im Klartext in Datenbank, Logs, Tests oder Commits, **nie an eine KI**. IBAN, Geburts- und Ausweisdaten bleiben ausgeschlossen (entschieden 16.11.2026). Gleiches Passwort wie die Schwärzliste.
 7. **Freitext** (Fragen, Schadenbeschreibung) wird vor dem Senden ebenfalls gegen die Schwärzliste ersetzt.
 8. **Zweite Prüfung:** Jede KI-Antwort wird auf dem Gerät gegen die entschlüsselte Schwärzliste (und den Nummern-Tresor, sobald es ihn gibt) geprüft. Taucht ein Eintrag auf, warnt die App (dann hat die KI etwas Ungeschwärztes gesehen).
 9. **Server und Datenbank in der EU** (**Entschieden (15.11.2026):** Supabase Irland/eu-west-1, da Frankfurt beim Anlegen nicht angeboten wurde; Vercel-Funktionen ebenfalls in Irland/Dublin [prüfen: Regionsbezeichnung]. Nicht die Sammeloption „Europe“ wählen, sie umfasst auch London und Zürich).
@@ -229,8 +229,8 @@ Fehlerfälle: kein Netz → Entwurf auf dem Gerät; KI nicht erreichbar oder Lim
 5. Texterkennung auf dem iPhone: Geschwindigkeit und Qualität mit echten Handyfotos (Test im Artefakt „Texterkennung-Test“ steht aus).
 6. Tatsächliche KI-Kosten je Dokument/Frage/Schadenfall messen.
 7. ~~Wer betreut Updates und Sicherungen~~ → **Entschieden:** Vater, monatlich; die App erinnert per Termin.
-8. Nummern-Tresor: eigenes Passwort oder dasselbe wie die Schwärzliste (ein Entsperren für beides)? IBAN auch in den Tresor?
-9. Reihenfolge der Ergänzungen aus Abschnitt 13.
+8. ~~Nummern-Tresor: Passwort, IBAN?~~ → **Entschieden (16.11.2026):** dasselbe Passwort wie die Schwärzliste (ein Entsperren für beides); **keine IBAN** im Tresor.
+9. ~~Reihenfolge der Ergänzungen~~ → **Entschieden (16.11.2026):** Terminvorlagen, Nummern-Tresor mit Ablageort, Notfallblatt, Steuerexport, Dublettenerkennung mit Trigramm-Suche, Stand der Fachregel.
 
 ## 12. Vorgeschlagene Reihenfolge der Umsetzung
 
