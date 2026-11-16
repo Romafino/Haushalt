@@ -9,6 +9,7 @@ import { pdf } from "@/lib/export/pdf";
 import { xlsx } from "@/lib/export/xlsx";
 import { dateiTeilen } from "@/lib/geraet/teilen";
 import * as R from "@/lib/regeln";
+import { RegelStand } from "@/components/regel-stand";
 
 const euro = (n: number | null) => (n == null ? "–" : n.toLocaleString("de-DE", { style: "currency", currency: "EUR" }));
 
@@ -43,7 +44,7 @@ export default function Steuer() {
               <div className="zeile"><span>Belege</span><strong>{s.anzahl}</strong></div>
               <div className="zeile"><span>Arbeitskosten</span><strong>{euro(s.arbeit)}</strong></div>
               <div className="zeile"><span>davon unbar bezahlt</span><strong>{euro(s.anrechenbar)}</strong></div>
-              <div className="zeile leise"><span>rechnerisch 20 % (Höchstbetrag {euro(s.hoechst)})</span><span>{euro(s.rechnerisch)}</span></div>
+              <div className="zeile leise"><span>rechnerisch {s.prozent} % (Höchstbetrag {euro(s.hoechst)})</span><span>{euro(s.rechnerisch)}</span></div>
               {s.ohneUnbar > 0 && <p className="fehler">{s.ohneUnbar} Beleg(e) nicht als unbar bezahlt markiert – zählen nicht mit.</p>}
               <ul className="liste">
                 {l.zeilen.filter((z) => z.art === s.art).map((z) => (
@@ -57,6 +58,7 @@ export default function Steuer() {
             </section>
           ))}
           <p className="leise">{HINWEIS}</p>
+          <RegelStand k="steuer35a" />
         </>
       )}
     </main>

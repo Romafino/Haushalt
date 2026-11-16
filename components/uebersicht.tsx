@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { RegelStand } from "@/components/regel-stand";
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { frageMerken, sucheMerken } from "@/lib/geraet/frage-entwurf";
@@ -121,6 +122,7 @@ export function Uebersicht({ akte: S, haushaltId, onGeaendert }: { akte: Akte; h
         <Link href="/sicherung">Datensicherung</Link>
         <Link href="/notfallblatt">Notfallblatt</Link>
         <Link href="/steuer">Steuer §35a</Link>
+        <Link href="/regeln">Fachregeln</Link>
       </nav>
 
       <section className="karte">
@@ -141,13 +143,14 @@ export function Uebersicht({ akte: S, haushaltId, onGeaendert }: { akte: Akte; h
                 <strong>{euro(s.ermaessigung)}</strong>
               </div>
               <span className="leise">
-                {s.anzahl} Beleg(e), anrechenbare Arbeitskosten {euro(s.anrechenbar)}, Höchstbetrag {euro(R.MAX35A[art])}
+                {s.anzahl} Beleg(e), anrechenbare Arbeitskosten {euro(s.anrechenbar)}, Höchstbetrag {euro(R.regel35a(jahr).max[art])}
                 {s.bar ? ` · ${s.bar} bar bezahlt, zählt nicht` : ""}
               </span>
             </div>
           );
         })}
-        <p className="leise">Rechenhilfe, keine Steuerberatung. Beträge und Grenzen [prüfen].</p>
+        <p className="leise">Rechenhilfe, keine Steuerberatung. <Link href="/steuer">Belege und Export →</Link></p>
+        <RegelStand k="steuer35a" />
       </section>
     </>
   );

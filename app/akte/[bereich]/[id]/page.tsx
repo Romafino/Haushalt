@@ -1,5 +1,6 @@
 "use client";
 import { Suspense, useState } from "react";
+import { RegelStand } from "@/components/regel-stand";
 import { TresorNummern } from "@/components/tresor-nummern";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -86,6 +87,8 @@ function Detail() {
       {akte && eintrag && haushaltId && def.tabelle === "vertraege" && <EreignisEintragen key={String(eintrag.status) + String(eintrag.beitrag)} v={eintrag} S={akte} haushaltId={haushaltId} onGeaendert={neuLaden} />}
       {akte && eintrag && def.tabelle === "vertraege" && <TresorNummern bezugId={eintrag.id} vorschlag={R.istVers(eintrag) ? "Versicherungsnummer" : "Kundennummer"} />}
       {akte && eintrag && def.tabelle === "vertraege" && <Kuendigungsentwurf v={eintrag} S={akte} />}
+      {akte && eintrag && def.tabelle === "vertraege" && <RegelStand k={R.istVers(eintrag) ? "kuendigung" : "verbraucherLaufzeit"} />}
+      {akte && eintrag && def.tabelle === "belege" && !!eintrag.gewArt && String(eintrag.gewArt) !== "keine" && <RegelStand k="gewaehrleistung" />}
       {akte && eintrag && (def.tabelle === "dinge" || def.tabelle === "firmen") && <Bezogen e={eintrag} feld={def.tabelle === "dinge" ? "dingId" : "firmaId"} S={akte} />}
 
       {akte && (neu || eintrag) && (
