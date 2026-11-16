@@ -32,8 +32,9 @@ Oberfläche: mobil zuerst (iPhone), außerdem Mac. Deutsch, ruhig und übersicht
    - **Ausnahme (Entschieden):** Fotos vom Schaden (Schadenfall) dürfen ungeschwärzt in der Dateiablage liegen. Sie gehen **nie** an eine KI.
 5. **Schwärzliste** (echte Namen, Anschrift, Telefon, E-Mail → Platzhalter): liegt auf dem Server **nur verschlüsselt** (PBKDF2-SHA256 + AES-GCM, im Browser ver- und entschlüsselt). **Entschieden:** ein **gemeinsames Passwort** für beide Eltern. Das Passwort verlässt nie das Gerät.
 6. **Nicht gespeichert werden** Vertrags-, Kunden-, Versicherungs-, Schaden- und Rechnungsnummern, IBAN, Geburtsdaten, Ausweisdaten.
+   - **Ausnahme (Entschieden 16.11.2026): Nummern-Tresor.** Vertrags-, Kunden-, Versicherungs- und Schadennummern dürfen **nur** im verschlüsselten Nummern-Tresor stehen (Muster Schwärzliste, Abschnitt 13.1): im Browser ver- und entschlüsselt, nie im Klartext in Datenbank, Logs, Tests oder Commits, **nie an eine KI**. IBAN, Geburts- und Ausweisdaten bleiben ausgeschlossen [offen: IBAN auch in den Tresor?].
 7. **Freitext** (Fragen, Schadenbeschreibung) wird vor dem Senden ebenfalls gegen die Schwärzliste ersetzt.
-8. **Zweite Prüfung:** Jede KI-Antwort wird auf dem Gerät gegen die entschlüsselte Schwärzliste geprüft. Taucht ein Eintrag auf, warnt die App (dann hat die KI etwas Ungeschwärztes gesehen).
+8. **Zweite Prüfung:** Jede KI-Antwort wird auf dem Gerät gegen die entschlüsselte Schwärzliste (und den Nummern-Tresor, sobald es ihn gibt) geprüft. Taucht ein Eintrag auf, warnt die App (dann hat die KI etwas Ungeschwärztes gesehen).
 9. **Server und Datenbank in der EU** (**Entschieden (15.11.2026):** Supabase Irland/eu-west-1, da Frankfurt beim Anlegen nicht angeboten wurde; Vercel-Funktionen ebenfalls in Irland/Dublin [prüfen: Regionsbezeichnung]. Nicht die Sammeloption „Europe“ wählen, sie umfasst auch London und Zürich).
 10. **Keine Rechts-, Steuer- oder Abschlussberatung**, keine Abschluss- oder Kündigungsempfehlung. „Nicht gefunden“ heißt „unklar“, nie „nicht versichert“. Immer Quelle nennen.
 
@@ -100,13 +101,13 @@ Jede Tabelle hat `haushalt_id`. RLS-Regel überall: **lesen und schreiben nur, w
 | `auswahlwerte` | eigene Rollen, Vertragsarten, Firmenarten, Ding-Bereiche, Dokumenttypen |
 | `firmen` | Name, Art, Telefon, E-Mail, Schaden-/Störungshotline, Webadresse, Notiz |
 | `dinge` | Bezeichnung, Bereich, Hersteller, Modell, Kauf-/Baujahr, Status (aktiv/ersetzt/verkauft), Notiz |
-| `vertraege` | Kurzname, Art, Firma, Status (Angebot → aktiv → gekündigt → beendet/ersetzt), Abschluss, Beginn, Kündigungsweg, online abgeschlossen, gekündigt am/zum, bestätigt, ersetzt durch, Notiz |
+| `vertraege` | Kurzname, Art, Firma, Status (Angebot → aktiv → gekündigt → beendet/ersetzt), Abschluss, Beginn, Kündigungsweg, online abgeschlossen, gekündigt am/zum, bestätigt, ersetzt durch, Notiz, (geplant) Ablageort |
 | `vertrag_dinge`, `vertrag_rollen` | mehrere Bezüge je Vertrag |
 | `fassungen` | Beitrag, Zahlweise, Laufzeitende, Kündigungsfrist + Einheit, Verlängerung; gültig von/bis; Grund; Dokument |
 | `belege` | Datum, Firma, Ding, Betrag, Arbeitskosten, Steuer (35a Handwerker/haushaltsnah/–), unbar, Übergabe/Abnahme, Gewährleistungsart, Gewährleistung bis, Schadenfall |
 | `termine` | eigene Termine: Datum, Titel, Notiz, Vorlauf, Wiederholung (Monate), erledigt, Bezug |
 | `ereignisse` | Zeitleiste je Vertrag/Ding: Datum, Typ, Text, Dokument |
-| `dokumente` | Typ, Titel, Datum, gültig von/bis, Zuordnung (Vertrag/Ding/Firma), Seitenzahl, Datenschutzbefund, Ergänzungen |
+| `dokumente` | Typ, Titel, Datum, gültig von/bis, Zuordnung (Vertrag/Ding/Firma), Seitenzahl, Datenschutzbefund, Ergänzungen, (geplant) Ablageort, Prüfsumme des Textes |
 | `dokument_seiten` | geschwärzter Text je Seite (Volltextindex) |
 | `dokument_bilder` | Pfad des geschwärzten Bildes in Storage |
 | `steckbriefe` | je Dokument: Gefahren, Summen, Selbstbeteiligung, Ausschlüsse, Pflichten, Meldefristen, Mitversicherte, Fundstellen; gültig von/bis; frühere Fassungen bleiben |
@@ -115,6 +116,7 @@ Jede Tabelle hat `haushalt_id`. RLS-Regel überall: **lesen und schreiben nur, w
 | `schaden_fotos` | Schadenfotos (ungeschwärzt erlaubt, nie an KI) |
 | `fragen` | gespeicherte Fragen und Antworten (nur Platzhalter-Fassung), nur über Knopf „Zur Akte“ |
 | `schwaerzliste` | ein verschlüsselter Block (salz, iter, iv, daten), nie Klartext |
+| `nummern_tresor` | (geplant, 13.1) ein verschlüsselter Block wie die Schwärzliste: je Vertrag/Dokument Nummern; nie Klartext |
 | `push_abos` | Geräte für Web-Push |
 | `kalender_zugang` | Hash des geheimen Kalender-Schlüssels |
 | `ki_protokoll` | Zeitpunkt, Aufgabe, Anbieter, Umfang, Kosten — **ohne Inhalt** |
@@ -205,7 +207,11 @@ Fehlerfälle: kein Netz → Entwurf auf dem Gerät; KI nicht erreichbar oder Lim
 
 **Entschieden (15.11.2026):** Entwicklung mit erfundenen Daten auf Supabase Free. Free oder Pro wird vor dem Umzug echter Daten entschieden.
 
-## 10. Umzug aus den Artefakten [noch nicht besprochen]
+## 10. Umzug aus den Artefakten
+
+**Entschieden (16.11.2026):** Kein Umzug. Die Daten der alten App waren nur Tests; die neue App startet leer. Die folgenden Punkte bleiben nur zur Information stehen.
+
+**Entschieden (16.11.2026): Datensicherung** ohne Kosten und ohne App-Abhängigkeit: (1) verschlüsselte Sicherung (Passwort, PBKDF2+AES-GCM) zum Zurückspielen, (2) Öffner `sicherung-oeffnen.html`, der sie offline in jedem Browser entschlüsselt, (3) lesbarer Export (ZIP mit Excel und Seitentexten, unverschlüsselt). Monatliche Erinnerung per Termin.
 
 - Haushalts-App erzeugt eine **Datensicherung** (ZIP mit `sicherung.json`, Format 1: Sammlungen firmen, dinge, vertraege, fassungen, dokumente, belege, fristen, ereignisse, schadenfaelle, zaehler; Seiten je Dokument; Einstellungen; verschlüsselte Schwärzliste). Import-Skript in die neuen Tabellen nötig (IDs abbilden, Mehrfachbezüge, Steckbrief in eigene Tabelle).
 - Gespeicherte Originale aus der Artefakt-Dateiablage sind teilweise **ungeschwärzt** → **Entschieden (15.11.2026):** beim Umzug **nicht** übernehmen. Sie bleiben bei der Familie.
@@ -216,13 +222,15 @@ Fehlerfälle: kein Netz → Entwurf auf dem Gerät; KI nicht erreichbar oder Lim
 
 0. Hinweis Umsetzung: Schritt 6 (Schwärzliste) wurde vor Schritt 5 gezogen, damit beim Dokumenten-Upload Namen automatisch geschwärzt werden. Deutsche Volltextsuche zerlegt keine Komposita (z. B. findet „Einbruch“ nicht „Einbruchdiebstahl“) → in Schritt 8 berücksichtigen.
 
-1. Umzug: Zeitpunkt und Parallelbetrieb (in Schritt 9). Originale werden nicht übernommen (entschieden).
+1. ~~Umzug: Zeitpunkt und Parallelbetrieb~~ → **Entschieden (16.11.2026):** kein Umzug, Start mit leerer App.
 2. ~~Kaskade beim endgültigen Löschen~~ → entschieden (Abschnitt 6).
 3. Supabase Free oder Pro: vor dem Umzug echter Daten (bis dahin Free).
 4. Push auf iOS: technische Voraussetzungen prüfen.
 5. Texterkennung auf dem iPhone: Geschwindigkeit und Qualität mit echten Handyfotos (Test im Artefakt „Texterkennung-Test“ steht aus).
 6. Tatsächliche KI-Kosten je Dokument/Frage/Schadenfall messen.
 7. ~~Wer betreut Updates und Sicherungen~~ → **Entschieden:** Vater, monatlich; die App erinnert per Termin.
+8. Nummern-Tresor: eigenes Passwort oder dasselbe wie die Schwärzliste (ein Entsperren für beides)? IBAN auch in den Tresor?
+9. Reihenfolge der Ergänzungen aus Abschnitt 13.
 
 ## 12. Vorgeschlagene Reihenfolge der Umsetzung
 
@@ -234,4 +242,62 @@ Fehlerfälle: kein Netz → Entwurf auf dem Gerät; KI nicht erreichbar oder Lim
 6. Schwärzliste verschlüsselt, gemeinsames Passwort.
 7. Kalender-Abo, Push, Web-App-Manifest.
 8. Frag die Akte (Volltextsuche), Schadenfall.
-9. Umzug der Daten, Parallelbetrieb, Umstieg.
+9. ~~Umzug der Daten, Parallelbetrieb, Umstieg.~~ Entfällt (kein Umzug, 16.11.2026). Stattdessen: Datensicherung (verschlüsselt, Öffner, lesbarer Export).
+10. Ergänzungen aus Abschnitt 13 (Reihenfolge noch offen).
+
+## 13. Ergänzungen (16.11.2026)
+
+### 13.1 Nummern-Tresor und Ablageort
+
+- **Problem:** Regel 6 verbietet das Speichern von Vertrags-, Kunden- und Versicherungsnummern. Bei Schadenmeldung oder Kündigung fragt der Anbieter aber als Erstes danach, und ihr müsst dann den Papierordner suchen.
+- **Lösung:** Ein zweiter verschlüsselter Block nach dem Muster der Schwärzliste (im Browser ver- und entschlüsselt, der Server sieht nur Datensalat). Darin steht je Vertrag die Nummer, die nur auf dem entsperrten Gerät angezeigt wird und nie an die KI geht.
+- **Ablageort:** Ein Freitextfeld je Vertrag oder Dokument, etwa „Ordner Versicherungen, Fach 3“ oder „Kundenportal“. Es enthält keine sensiblen Daten und kann normal gespeichert werden.
+- **Nutzen:** Der Kündigungsentwurf kann [Kundennummer] auf dem Gerät automatisch füllen.
+- Anmerkungen zur Umsetzung:
+  - Die Schwärzung bleibt unverändert: Nummern werden in Dokumenten weiter geschwärzt; der Tresor ist der einzige Ort, an dem sie stehen.
+  - Nummern aus dem Tresor werden beim Schwärzen zusätzlich wie Einträge der Schwärzliste behandelt (sicherer Treffer statt nur Muster).
+  - Die Datensicherung enthält den Tresor nur verschlüsselt; der lesbare Export und das Notfallblatt ohne Nummern enthalten ihn nicht.
+  - Kündigungsentwurf mit Nummer nur auf dem Gerät (Kopieren/Drucken), nicht gespeichert.
+
+### 13.2 Notfallblatt
+
+- **Inhalt:** Eine Seite (PDF oder Offline-Ansicht) mit allen laufenden Verträgen, Anbieter, Hotline, Ablageort des Originals und den nächsten Fristen.
+- **Zweck:** Der andere Elternteil oder eine Vertrauensperson findet sich zurecht, wenn der Betreuer der App ausfällt.
+- **Ohne Nummern:** Dann ist es unkritisch und darf ausgedruckt im Ordner liegen. Eine Fassung mit Nummern gäbe es nur auf dem entsperrten Gerät.
+- Anmerkung: baut auf der vorhandenen Notfallseite (Sofortmaßnahmen, Hotlines, offline) auf; PDF über die Druckfunktion des Browsers.
+
+### 13.3 Terminvorlagen
+
+- **Inhalt:** Fertige wiederkehrende Termine zum Antippen, statt jeden selbst anzulegen: Hauptuntersuchung, Heizungswartung, Schornsteinfeger, Rauchmelder-Prüfung, Reifenwechsel.
+- **Ablauf:** Vorlage wählen, einem Ding zuordnen (Auto, Heizung), letztes Datum eintragen. Der Rhythmus ist vorbelegt und änderbar.
+- **Aufwand:** Gering, weil die Tabelle `termine` Wiederholung und Bezug schon hat.
+- Anmerkung: vorbelegte Rhythmen sind Vorschläge ohne Gewähr [prüfen je Vorlage, z. B. HU-Intervall je Fahrzeugalter, Schornsteinfeger je Feuerstättenbescheid].
+
+### 13.4 Steuerexport
+
+- **Inhalt:** Je Steuerjahr eine Liste aller §35a-Belege mit Datum, Firma, Leistung, Arbeitskosten, Art (Handwerker oder haushaltsnah), „unbar bezahlt“ und Summen je Art.
+- **Format:** PDF oder Excel, zum Abtippen in die Steuererklärung oder zur Weitergabe an den Steuerberater.
+- **Hinweis:** Belege ohne unbare Zahlung oder ohne ausgewiesene Arbeitskosten werden markiert.
+- Anmerkung: Der lesbare Export enthält schon ein Blatt „§35a“ (Summen je Jahr und Art); der Steuerexport ergänzt die Einzelliste je Jahr und die Markierungen. Keine Steuerberatung (Regel 10).
+
+### 13.5 Dublettenerkennung
+
+- **Inhalt:** Beim Hochladen vergleicht die App den geschwärzten Text mit vorhandenen Dokumenten (Prüfsumme oder Ähnlichkeit).
+- **Verhalten:** Bei einem Treffer kommt die Warnung „Sieht aus wie Dokument X vom …“, bevor die KI aufgerufen wird.
+- **Nutzen:** Spart KI-Kosten und verhindert doppelte Verträge, Fassungen und Belege, etwa wenn beide Eltern denselben Brief fotografieren.
+- Anmerkung: Verglichen wird nur der geschwärzte Text (er liegt ohnehin in der Datenbank); Prüfsumme für exakt gleiche Texte, Ähnlichkeit (Trigramm, 13.6) für zwei Fotos desselben Briefs. Die Person entscheidet, ob trotzdem gespeichert wird.
+
+### 13.6 Trigramm-Suche
+
+- **Problem:** Die deutsche Volltextsuche findet nur ganze Wörter, also bei „Einbruch“ nicht „Einbruchdiebstahl“.
+- **Lösung:** Die Postgres-Erweiterung pg_trgm zerlegt Texte in Dreier-Buchstabenfolgen und findet damit Wortteile und Tippfehler.
+- **Einsatz:** Als Ergänzung: erst Volltextsuche, bei wenigen Treffern zusätzlich Trigramm. Sie bringt auch bei Erkennungsfehlern der Texterkennung etwas („Einbnuch“).
+- Anmerkung (Stand Umsetzung): Die Suche nutzt bereits Wortanfänge („Einbruch“ findet „Einbruchdiebstahl“). Es fehlen Wortteile am Ende („Diebstahl“ → „Einbruchdiebstahl“) und Tippfehler – dafür pg_trgm [prüfen: auf Supabase als Erweiterung verfügbar].
+
+### 13.7 Stand der Fachregel
+
+- **Inhalt:** Jede Regel im Rechenmodul (Kündigungsfristen, Gewährleistung, §35a-Höchstbeträge) bekommt drei Angaben: Rechtsgrundlage, „geprüft am“ und „gilt ab“.
+- **Anzeige:** Neben jedem Ergebnis, zum Beispiel „Regel Stand 11/2026“.
+- **Erinnerung:** Ein jährlicher Termin „Fachregeln prüfen“.
+- **Nutzen:** Gesetzesänderungen (etwa die mögliche §35a-Kürzung) fallen auf. Alte Steuerjahre rechnen weiter mit der damals gültigen Regel.
+- Anmerkung: Rechtsgrundlagen und Werte werden bei der Umsetzung recherchiert und mit [prüfen] markiert, nicht aus dem Gedächtnis übernommen. Regeländerungen nur bewusst und mit Test (CLAUDE.md).
