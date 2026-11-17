@@ -100,7 +100,7 @@ export default function Frage() {
           {erg.warnung && <p className="fehler">{erg.warnung}</p>}
           <p className="antwort" style={{ whiteSpace: "pre-wrap" }}>{anzeige}</p>
           <p className="leise">
-            Stand: {R.fmt(erg.stichtag)}{erg.stichtag === R.heute() ? " (heute, nur laufende Verträge)" : " (damals gültige Fassung)"}.
+            Stand: {R.fmt(erg.stichtag)}{erg.stichtag === R.heute() ? (erg.mitKuenftigen ? " (heute; laufende und künftige Verträge)" : " (heute, nur laufende Verträge)") : " (damals gültige Fassung)"}.
             {" "}Gelesen:{" "}
             {gelesen.length ? gelesen.map((g, i) => (
               <span key={g.dokumentId}>{i > 0 && "; "}<Link href={`/dokumente/${g.dokumentId}`}>{g.titel}</Link> S. {g.seiten.join(", ")}</span>

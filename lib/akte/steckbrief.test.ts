@@ -14,4 +14,9 @@ describe('Steckbrief-Anzeige', () => {
       { titel: 'Fundstellen', zeilen: ['Fahrrad · S. 2 · § 3'] },
     ]);
   });
+  it('Fundstelle über mehrere Seiten: S. 20–23', () => {
+    expect(steckbriefAnzeige({ fundstellen: [{ thema: 'Vollkasko', seite: 20, bisSeite: 23, klausel: 'A.2' }, { thema: 'SB', seite: 3, bisSeite: 3 }] })).toEqual([
+      { titel: 'Fundstellen', zeilen: ['Vollkasko · S. 20–23 · A.2', 'SB · S. 3'] },
+    ]);
+  });
 });

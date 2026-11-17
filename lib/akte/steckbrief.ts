@@ -12,7 +12,7 @@ function zeile(x: unknown): string {
   if (typeof x !== 'object') return String(x).trim();
   const o = x as Record<string, unknown>;
   if ('was' in o || 'betrag' in o) return [o.was, o.betrag].filter((v) => !leer(v)).join(': ');
-  if ('seite' in o || 'klausel' in o || 'thema' in o) return [o.thema, !leer(o.seite) ? 'S. ' + o.seite : '', o.klausel].filter((v) => !leer(v)).join(' · ');
+  if ('seite' in o || 'klausel' in o || 'thema' in o) return [o.thema, !leer(o.seite) ? 'S. ' + o.seite + (!leer(o.bisSeite) && Number(o.bisSeite) > Number(o.seite) ? '–' + o.bisSeite : '') : '', o.klausel].filter((v) => !leer(v)).join(' · ');
   return Object.values(o).filter((v) => !leer(v)).map(String).join(' · ');
 }
 

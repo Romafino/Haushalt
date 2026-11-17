@@ -7,11 +7,11 @@ import { anonymisieren } from "@/lib/schwaerzen";
 import { listenTreffer } from "@/lib/schwaerzen/seitentext";
 import type { ListenEintrag } from "@/lib/schwaerzen/liste";
 import { textSauber } from "@/lib/ki/antwort";
-import { frageKontext, frageVerzeichnis, fundSeiten, genannteVertraege, stichtagAus, verweise, type FrageSeite } from "@/lib/ki/frage";
+import { frageKontext, frageVerzeichnis, fundSeiten, genannteVertraege, MAX_SEITEN, MAX_SEITEN_VERTRAG, stichtagAus, verweise, type FrageSeite } from "@/lib/ki/frage";
 import type { Akte, Eintrag } from "@/lib/akte/abbilden";
 import * as R from "@/lib/regeln";
 
-export type FrageErgebnis = { frage: string; antwort: string; stichtag: string; gelesen: { dokumentId: string; titel: string; nr: number }[]; kostenCent: number; warnung?: string };
+export type FrageErgebnis = { frage: string; antwort: string; stichtag: string; gelesen: { dokumentId: string; titel: string; nr: number }[]; kostenCent: number; warnung?: string; mitKuenftigen?: boolean };
 
 async function senden(body: Record<string, unknown>) {
   const r = await fetch("/api/ki/frage", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -41,7 +41,7 @@ export async function fragen(haushaltId: string, frageRoh: string, liste: Listen
   if (s.error) throw new Error("Die Suche in den Dokumenten hat nicht geklappt.");
   let roh = ((s.data ?? []) as { dokument_id: string; nr: number; text: string }[]).filter((x) => inKraft(x.dokument_id, stichtag));
 
-  // Wird ein Vertrag genannt („Vollkasko“), zuerst die Fundstellen aus seinem Steckbrief lesen, dann die Suchtreffer (zusammen höchstens 12)
+  // Wird ein Vertrag genannt („Vollkasko“), zuerst die Fundstellen aus seinem Steckbrief lesen, dann die Suchtreffer (zusammen höchstens 20, sonst 12)
   const genannt = genannteVertraege(frage, akte.vertraege).filter((id) => akte.dokumente.some((d) => d.vertragId === id && inKraft(d.id, stichtag)));
   const fund = fundSeiten(akte.dokumente.filter((d) => inKraft(d.id, stichtag)), genannt);
   if (fund.length) {
@@ -52,9 +52,11 @@ export async function fragen(haushaltId: string, frageRoh: string, liste: Listen
       const dazu = roh.filter((x) => !istVorne(x));
       // Treffer aus den genannten Verträgen vor anderen Suchtreffern
       const ausGenannt = (x: { dokument_id: string }) => genannt.includes(String(doks.get(x.dokument_id)?.vertragId ?? ""));
-      roh = [...vorne, ...dazu.filter(ausGenannt), ...dazu.filter((x) => !ausGenannt(x))].slice(0, 12);
+      roh = [...vorne, ...dazu.filter(ausGenannt), ...dazu.filter((x) => !ausGenannt(x))].slice(0, MAX_SEITEN_VERTRAG);
     }
   }
+
+  if (!fund.length) roh = roh.slice(0, MAX_SEITEN);
 
   if (!roh.length && doks.size) {
     status("Nichts direkt gefunden – die KI sucht passende Seiten aus …");
@@ -86,7 +88,9 @@ export async function fragen(haushaltId: string, frageRoh: string, liste: Listen
     warnung = "Achtung: Die Antwort enthielt Angaben aus eurer Schwärzliste. Die Stellen wurden ersetzt; bitte die gespeicherten Seiten prüfen.";
     antwort = anonymisieren(antwort, liste).text;
   }
-  return { frage, antwort, stichtag, gelesen: roh.map((x) => ({ dokumentId: x.dokument_id, titel: titel(x.dokument_id), nr: x.nr })), kostenCent: kosten, warnung };
+  // Fußzeile: wurden Seiten eines Vertrags gelesen, der erst später beginnt?
+  const mitKuenftigen = roh.some((x) => { const d = doks.get(x.dokument_id), v = d?.vertragId ? akte.vertraege.find((y) => y.id === d.vertragId) : null; return !!v && R.kuenftigAm(v, stichtag); });
+  return { frage, antwort, stichtag, gelesen: roh.map((x) => ({ dokumentId: x.dokument_id, titel: titel(x.dokument_id), nr: x.nr })), kostenCent: kosten, warnung, mitKuenftigen };
 }
 
 /** „Für Tochter“: zweiter Aufruf mit der geschwärzten Frage und Antwort; Ergebnis wieder gegen die Liste geprüft. */

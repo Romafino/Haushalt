@@ -7,7 +7,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
 import { anbieterAus, KiFehler } from "@/lib/ki/anbieter";
 import { jsonAus, klartextVerdacht, textSauber } from "@/lib/ki/antwort";
-import { antwortPrompt, auswahlPrompt, MAX_FRAGE, MAX_SEITE, tochterPrompt, type FrageSeite } from "@/lib/ki/frage";
+import { antwortPrompt, auswahlPrompt, MAX_FRAGE, MAX_SEITE, MAX_SEITEN_VERTRAG, tochterPrompt, type FrageSeite } from "@/lib/ki/frage";
 import { kostenCent, limitstand, monatsbeginn, preisAus } from "@/lib/ki/kosten";
 import { IBAN_RE } from "@/lib/schwaerzen";
 import * as R from "@/lib/regeln";
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
   if (!UUID.test(haushaltId) || !schritt || frage.length < 3 || (schritt === "tochter" && !antwortIn)) return fehler(400, "Ungültige Anfrage.");
   const heute = R.heute();
   const stichtag = typeof e.stichtag === "string" && TAG.test(e.stichtag) ? e.stichtag : heute;
-  const seiten: FrageSeite[] = (Array.isArray(e.seiten) ? e.seiten : []).slice(0, 12).map((s: { titel?: unknown; nr?: unknown; text?: unknown }) => ({
+  const seiten: FrageSeite[] = (Array.isArray(e.seiten) ? e.seiten : []).slice(0, MAX_SEITEN_VERTRAG).map((s: { titel?: unknown; nr?: unknown; text?: unknown }) => ({
     titel: String(s?.titel ?? "Dokument").slice(0, 200), nr: Number(s?.nr) || 1, text: typeof s?.text === "string" ? s.text.slice(0, MAX_SEITE) : "",
   }));
   const verzeichnis = Array.isArray(e.verzeichnis) ? e.verzeichnis.slice(0, 500) : [];
