@@ -26,41 +26,51 @@ async function bildLaden(file: File): Promise<HTMLCanvasElement> {
   return c;
 }
 
-/** PDF (Textebene wird übernommen) oder Fotos laden. Höchstens 60 Seiten. */
-export async function dateienLaden(files: File[], status: Status): Promise<{ seiten: Seite[]; quelle: "pdf" | "foto" }> {
-  const pdf = files.find(istPdf);
-  if (pdf && files.length > 1) throw new Error("Bitte entweder ein PDF oder Fotos wählen.");
-  if (!pdf) {
-    const seiten: Seite[] = [];
-    for (let i = 0; i < files.length; i++) {
-      status(`Foto ${i + 1} von ${files.length} wird vorbereitet …`);
-      seiten.push({ c: await bildLaden(files[i]), stuecke: null, balken: [] });
-    }
-    return { seiten, quelle: "foto" };
-  }
-  const lib = await import("pdfjs-dist");
-  lib.GlobalWorkerOptions.workerSrc = "/vendor/pdfjs/pdf.worker.min.mjs";
-  const doc = await lib.getDocument({ data: await pdf.arrayBuffer() }).promise;
-  if (doc.numPages > 60) throw new Error("Mehr als 60 Seiten. Bitte in Teilen bearbeiten.");
+export const MAX_SEITEN = 60;
+
+/** Reihenfolge mehrerer Dateien: nach Dateiname, Zahlen natürlich sortiert (Teil 2 vor Teil 10, IMG_0099 vor IMG_0100). */
+export function dateiReihenfolge<T extends { name: string }>(files: T[]): T[] {
+  return [...files].sort((a, b) => a.name.localeCompare(b.name, "de", { numeric: true, sensitivity: "base" }));
+}
+
+/** PDFs (Textebene wird übernommen) und Fotos laden, auch mehrere und gemischt, in Reihenfolge der Dateinamen.
+    bisher: schon geladene Seiten (für „Weitere Seiten hinzufügen“). Zusammen höchstens MAX_SEITEN. */
+export async function dateienLaden(files: File[], status: Status, bisher = 0): Promise<{ seiten: Seite[]; quelle: "pdf" | "foto" }> {
+  const liste = dateiReihenfolge(files);
   const seiten: Seite[] = [];
-  for (let i = 1; i <= doc.numPages; i++) {
-    status(`Seite ${i} von ${doc.numPages} wird vorbereitet …`);
-    const page = await doc.getPage(i), vp0 = page.getViewport({ scale: 1 }), vp = page.getViewport({ scale: Math.min(3, 1700 / vp0.width) });
-    const c = document.createElement("canvas");
-    c.width = Math.round(vp.width); c.height = Math.round(vp.height);
-    await page.render({ canvas: c, canvasContext: c.getContext("2d")!, viewport: vp }).promise;
-    const tc = await page.getTextContent(), stuecke: Stueck[] = [];
-    for (const it of tc.items) {
-      if (!("str" in it) || !it.str) continue;
-      const hgt = it.height || Math.hypot(it.transform[2], it.transform[3]) || 10;
-      // pdf.js 6: Rechteck über zwei Eckpunkte umrechnen (convertToViewportRectangle gibt es nicht mehr)
-      const p1 = vp.convertToViewportPoint(it.transform[4], it.transform[5] - hgt * 0.22), p2 = vp.convertToViewportPoint(it.transform[4] + it.width, it.transform[5] + hgt * 0.92);
-      const r = [p1[0], p1[1], p2[0], p2[1]] as number[];
-      stuecke.push({ str: it.str, x0: Math.min(r[0], r[2]), x1: Math.max(r[0], r[2]), y0: Math.min(r[1], r[3]), y1: Math.max(r[1], r[3]) });
+  const zuViel = () => new Error(`Zusammen mehr als ${MAX_SEITEN} Seiten. Bitte als eigenes Dokument aufnehmen.`);
+  const teil = (i: number) => (liste.length > 1 ? `Datei ${i + 1} von ${liste.length}, ` : "");
+  for (let d = 0; d < liste.length; d++) {
+    const f = liste[d];
+    if (!istPdf(f)) {
+      if (bisher + seiten.length + 1 > MAX_SEITEN) throw zuViel();
+      status(`${teil(d)}Foto wird vorbereitet …`);
+      seiten.push({ c: await bildLaden(f), stuecke: null, balken: [] });
+      continue;
     }
-    seiten.push({ c, stuecke: stuecke.length > 3 ? stuecke : null, balken: [] });
+    const lib = await import("pdfjs-dist");
+    lib.GlobalWorkerOptions.workerSrc = "/vendor/pdfjs/pdf.worker.min.mjs";
+    const doc = await lib.getDocument({ data: await f.arrayBuffer() }).promise;
+    if (bisher + seiten.length + doc.numPages > MAX_SEITEN) throw zuViel();
+    for (let i = 1; i <= doc.numPages; i++) {
+      status(`${teil(d)}Seite ${i} von ${doc.numPages} wird vorbereitet …`);
+      const page = await doc.getPage(i), vp0 = page.getViewport({ scale: 1 }), vp = page.getViewport({ scale: Math.min(3, 1700 / vp0.width) });
+      const c = document.createElement("canvas");
+      c.width = Math.round(vp.width); c.height = Math.round(vp.height);
+      await page.render({ canvas: c, canvasContext: c.getContext("2d")!, viewport: vp }).promise;
+      const tc = await page.getTextContent(), stuecke: Stueck[] = [];
+      for (const it of tc.items) {
+        if (!("str" in it) || !it.str) continue;
+        const hgt = it.height || Math.hypot(it.transform[2], it.transform[3]) || 10;
+        // pdf.js 6: Rechteck über zwei Eckpunkte umrechnen (convertToViewportRectangle gibt es nicht mehr)
+        const p1 = vp.convertToViewportPoint(it.transform[4], it.transform[5] - hgt * 0.22), p2 = vp.convertToViewportPoint(it.transform[4] + it.width, it.transform[5] + hgt * 0.92);
+        const r = [p1[0], p1[1], p2[0], p2[1]] as number[];
+        stuecke.push({ str: it.str, x0: Math.min(r[0], r[2]), x1: Math.max(r[0], r[2]), y0: Math.min(r[1], r[3]), y1: Math.max(r[1], r[3]) });
+      }
+      seiten.push({ c, stuecke: stuecke.length > 3 ? stuecke : null, balken: [] });
+    }
   }
-  return { seiten, quelle: "pdf" };
+  return { seiten, quelle: liste.some(istPdf) ? "pdf" : "foto" };
 }
 
 /* Texterkennung auf dem Gerät. Engine und Sprachdaten liefert die App selbst aus (public/vendor). */
