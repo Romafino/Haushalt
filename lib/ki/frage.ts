@@ -45,22 +45,44 @@ export function genannteVertraege(frage: string, vertraege: VertragLike[]): stri
   return vertraege.filter((v) => WORT(String(v.kurzname ?? '')).some((w) => !ALLTAG.has(w) && f.includes(w))).map((v) => v.id);
 }
 
-/** Fundstellen-Seiten aus den Steckbriefen dieser Verträge (höchstens max), damit die Antwort die passenden Bedingungen liest. */
-export function fundSeiten(dokumente: DokLike[], vertragIds: string[], max = 14): { dokumentId: string; seiten: number[] }[] {
+// Füllwörter, die in jeder Police stehen und nichts über die gesuchte Stelle sagen
+const FUELL = new Set([...ALLTAG, 'versichert', 'versicherungen', 'versichern', 'enthalten', 'enthält', 'alles', 'welche', 'welcher', 'welches', 'meine', 'meiner', 'unsere',
+  'unser', 'habe', 'haben', 'gibt', 'sind', 'wird', 'werden', 'kann', 'können', 'muss', 'wann', 'warum', 'wieso', 'dieser', 'diese', 'dieses', 'darin', 'dabei', 'bitte', 'genau',
+  'leistung', 'leistungen', 'umfang', 'umfasst', 'drin', 'steht', 'stehen', 'bedingungen', 'vertrages', 'vertraege', 'verträge', 'eigentlich', 'überhaupt', 'heute', 'noch']);
+
+/** Aussagekräftige Wörter der Frage (ohne Füllwörter), z. B. „was ist alles in der Vollkasko versicherung enthalten“ → ["vollkasko"]. */
+export function frageWoerter(frage: string): string[] {
+  return Array.from(new Set(WORT(frage).filter((w) => !FUELL.has(w))));
+}
+
+/** Seiten nach Treffern der Fragewörter ordnen (nur Seiten mit Treffern, meiste zuerst). Läuft auf dem Gerät, ohne KI. */
+export function seitenNachWoertern<T extends { text: string; nr: number }>(seiten: T[], woerter: string[], max = 10): T[] {
+  if (!woerter.length) return [];
+  const zaehl = (t: string) => { const l = t.toLowerCase(); return woerter.reduce((n, w) => n + (l.split(w).length - 1), 0); };
+  return seiten.map((s) => ({ s, n: zaehl(s.text) })).filter((x) => x.n > 0).sort((a, b) => b.n - a.n || a.s.nr - b.s.nr).slice(0, max).map((x) => x.s);
+}
+
+/** Fundstellen-Seiten aus den Steckbriefen dieser Verträge (höchstens max), damit die Antwort die passenden Bedingungen liest.
+    Mit Frage: Fundstellen, deren Thema/Klausel zur Frage passt („Kasko“ ↔ „Vollkasko“), zuerst; sonst nach Seitenzahl. */
+export function fundSeiten(dokumente: DokLike[], vertragIds: string[], max = 14, frage = ''): { dokumentId: string; seiten: number[] }[] {
+  const fw = frageWoerter(frage);
+  const passt = (x: { thema?: unknown; klausel?: unknown }) => WORT(String(x?.thema ?? '') + ' ' + String(x?.klausel ?? ''))
+    .some((t) => !FUELL.has(t) && fw.some((w) => w.includes(t) || t.includes(w)));
   const out: { dokumentId: string; seiten: number[] }[] = [];
   let n = 0;
   for (const d of dokumente) {
     if (n >= max || !vertragIds.includes(String(d.vertragId ?? '')) || !d.steckbrief || typeof d.steckbrief !== 'object') continue;
-    const fs = (d.steckbrief as { fundstellen?: { seite?: unknown; bisSeite?: unknown }[] }).fundstellen;
-    const alle: number[] = [];
+    const fs = (d.steckbrief as { fundstellen?: { seite?: unknown; bisSeite?: unknown; thema?: unknown; klausel?: unknown }[] }).fundstellen;
+    const vorn: number[] = [], rest: number[] = [];
     for (const x of Array.isArray(fs) ? fs : []) {
       const von = Number(x?.seite), bis = Number(x?.bisSeite);
       if (!Number.isInteger(von)) continue;
       // Abschnitt über mehrere Seiten (bisSeite), höchstens 6 Seiten je Fundstelle
       const ende = Number.isInteger(bis) && bis >= von ? Math.min(bis, von + 5) : von;
-      for (let s = von; s <= ende; s++) alle.push(s);
+      for (let s = von; s <= ende; s++) (fw.length && passt(x) ? vorn : rest).push(s);
     }
-    const nr = Array.from(new Set(alle.filter((x) => x >= 1 && x <= (Number(d.seiten) || 1)))).sort((a, b) => a - b).slice(0, max - n);
+    const ok = (x: number) => x >= 1 && x <= (Number(d.seiten) || 1);
+    const nr = Array.from(new Set([...vorn.filter(ok).sort((a, b) => a - b), ...rest.filter(ok).sort((a, b) => a - b)])).slice(0, max - n);
     if (nr.length) { out.push({ dokumentId: d.id, seiten: nr }); n += nr.length; }
   }
   return out;

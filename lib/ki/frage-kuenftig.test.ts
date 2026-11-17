@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, expect, it } from 'vitest';
 import * as R from '@/lib/regeln';
-import { fundSeiten, genannteVertraege, MAX_SEITEN, MAX_SEITEN_VERTRAG, REGELN } from './frage';
+import { frageWoerter, fundSeiten, genannteVertraege, MAX_SEITEN, MAX_SEITEN_VERTRAG, REGELN, seitenNachWoertern } from './frage';
 
 const H = '2026-11-17';
 const S: any = {
@@ -64,5 +64,29 @@ describe('Seitenwahl nach genanntem Vertrag', () => {
   });
   it('Seitenlimit: 12, mit genanntem Vertrag 20', () => {
     expect([MAX_SEITEN, MAX_SEITEN_VERTRAG]).toEqual([12, 20]);
+  });
+});
+
+describe('Seitenrang nach Fragewörtern (auf dem Gerät)', () => {
+  const F = 'was ist alles in der Vollkasko versicherung enthalten';
+  it('Füllwörter fallen weg', () => {
+    expect(frageWoerter(F)).toEqual(['vollkasko']);
+    expect(frageWoerter('Zahlt die Hausrat bei Fahrraddiebstahl?')).toEqual(['zahlt', 'hausrat', 'fahrraddiebstahl']);
+  });
+  it('Seiten mit den meisten Treffern zuerst, ohne Treffer gar nicht', () => {
+    const s = [
+      { dokument_id: 'd', nr: 2, text: 'Versicherungsschein. Vollkasko 300 €.' },
+      { dokument_id: 'd', nr: 11, text: 'A.2 Vollkasko ... Vollkasko ... VOLLKASKO' },
+      { dokument_id: 'd', nr: 14, text: 'A.8 Nicht versichert ist ...' },
+      { dokument_id: 'd', nr: 10, text: 'A.2.2 Teilkasko, Vollkasko' },
+    ];
+    expect(seitenNachWoertern(s, frageWoerter(F)).map((x) => x.nr)).toEqual([11, 2, 10]);
+    expect(seitenNachWoertern(s, [])).toEqual([]);
+  });
+  it('Fundstellen, deren Thema zur Frage passt, zuerst', () => {
+    const d = [{ id: 'x', vertragId: 'k1', seiten: 60, steckbrief: { fundstellen: [
+      { thema: 'Ausschlüsse', seite: 14, bisSeite: 16 }, { thema: 'Pflichten', seite: 19 }, { thema: 'Kaskoversicherung', klausel: 'A.2', seite: 10, bisSeite: 13 }] } }];
+    expect(fundSeiten(d, ['k1'], 14, F)[0].seiten.slice(0, 4)).toEqual([10, 11, 12, 13]);
+    expect(fundSeiten(d, ['k1'], 14)[0].seiten).toEqual([10, 11, 12, 13, 14, 15, 16, 19]);
   });
 });
