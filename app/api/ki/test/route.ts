@@ -24,15 +24,26 @@ export async function GET(req: NextRequest) {
   const { data } = await sb.auth.getClaims();
   if (!data?.claims?.sub) return NextResponse.json({ fehler: "Nicht angemeldet." }, { status: 401 });
   const a = anbieterAus(process.env);
+  if (!a) return NextResponse.json({ eingerichtet: false });
   const schluessel = process.env.GEMINI_API_KEY;
-  if (!a || !schluessel) return NextResponse.json({ eingerichtet: false });
 
   const p = req.nextUrl.searchParams.get("probe");
-  if (p === "alle") {
+  if (p && a.name === "claude") {
+    // Claude: winzige Testanfrage an das eingestellte Modell (keine Dokumentdaten)
+    const t0 = Date.now();
+    try {
+      const r = await a.auslesen('Antworte nur mit {"ok":true}', []);
+      return NextResponse.json({ modell: a.modell, ok: true, sekunden: (Date.now() - t0) / 1000, antwort: r.text.slice(0, 40), tokens: { ein: r.ein, aus: r.aus } });
+    } catch (e) {
+      return NextResponse.json({ modell: a.modell, ok: false, sekunden: (Date.now() - t0) / 1000, fehler: e instanceof Error ? e.message : "unbekannt", detail: e instanceof KiFehler ? e.detail : "" });
+    }
+  }
+  if (p && !schluessel) return NextResponse.json({ fehler: "Kein Gemini-Schlüssel hinterlegt." }, { status: 400 });
+  if (p === "alle" && schluessel) {
     const laeufe = [...KANDIDATEN.map((m) => probe(schluessel, m, true, 25000)), probe(schluessel, "gemini-3.8-flash", false, 25000)];
     return NextResponse.json({ eingestellt: a.modell, ergebnisse: await Promise.all(laeufe) });
   }
-  if (p) {
+  if (p && schluessel) {
     if (!/^[a-z0-9.\-]{3,60}$/.test(p)) return NextResponse.json({ fehler: "Ungültiger Modellname." }, { status: 400 });
     return NextResponse.json(await probe(schluessel, p, true, 50000));
   }

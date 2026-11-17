@@ -31,6 +31,8 @@ export default function DokumentNeu() {
   const [verlaeufe, setVerlaeufe] = useState<Record<number, Verlauf>>({});
   const [status, setStatus] = useState("");
   const [fehler, setFehler] = useState("");
+  const [kiFehler, setKiFehler] = useState(""); // direkt unter „Mit KI auslesen“, oben wäre sie außer Sicht
+  const [kiLaeuft, setKiLaeuft] = useState(false);
   const [meta, setMeta] = useState<Record<string, string>>({ typ: "Brief", titel: "", datum: "", gueltigVon: "", gueltigBis: "", vertragId: "", dingId: "", firmaId: "", ablageort: "" });
   const eingabe = useRef<HTMLInputElement>(null);
   // Dokument-ID erst bei Bedarf erzeugen (nicht beim Vorab-Rendern); bleibt für dieses Dokument gleich
@@ -66,7 +68,7 @@ export default function DokumentNeu() {
 
   async function laden(files: FileList | File[] | null) {
     if (!files?.length) return;
-    setFehler(""); setSeiten(null); setAktiv(0); setVerlaeufe({}); setKi(null); setAuswahl(null); setDubletten(null); setDublettenOk(false);
+    setFehler(""); setKiFehler(""); setSeiten(null); setAktiv(0); setVerlaeufe({}); setKi(null); setAuswahl(null); setDubletten(null); setDublettenOk(false);
     try {
       const r = await dateienLaden(Array.from(files), setStatus);
       try { await erkennen(r.seiten, setStatus); }
@@ -89,9 +91,9 @@ export default function DokumentNeu() {
 
   async function auslesen() {
     if (!seiten || !haushaltId || !akte) return;
-    setFehler("");
+    setFehler(""); setKiFehler("");
     if (!(await dublettenGeprueft())) return;
-    setStatus("Die KI liest die geschwärzten Seiten …");
+    setStatus("Die KI liest die geschwärzten Seiten …"); setKiLaeuft(true);
     try {
       const k = await kiAuslesen(haushaltId, seiten, sl.liste, akte);
       setKi(k);
@@ -100,9 +102,9 @@ export default function DokumentNeu() {
       const d = k.vorschlag.dokument ?? {};
       setMeta((m) => ({ ...m, typ: String(d.typ ?? m.typ), titel: String(d.titel ?? m.titel), datum: String(d.datum ?? ""), gueltigVon: String(d.gueltigVon ?? ""), gueltigBis: String(d.gueltigBis ?? "") }));
     } catch (e) {
-      setFehler(e instanceof Error ? e.message : "Die KI ist gerade nicht erreichbar.");
+      setKiFehler(e instanceof Error ? e.message : "Die KI ist gerade nicht erreichbar.");
     }
-    setStatus("");
+    setStatus(""); setKiLaeuft(false);
   }
 
   async function speichern(e: FormEvent) {
@@ -211,6 +213,9 @@ export default function DokumentNeu() {
               <p className="fehler">Sehr langes Dokument: Die KI liest nur Seite 1 bis {kiSeiten} von {seiten.length}. Gespeichert und durchsuchbar werden alle Seiten. Für eine vollständige Auswertung den Rest als eigenes Dokument aufnehmen.</p>
             )}
             {!ki && <button type="button" onClick={auslesen} disabled={!!status || !akte}>Mit KI auslesen</button>}
+            {kiLaeuft && <p className="leise" role="status">{status}</p>}
+            {kiFehler && <p className="fehler" role="alert">{kiFehler}</p>}
+            {dubletten && !dublettenOk && <p className="fehler">Bitte zuerst oben „Schon vorhanden?“ prüfen.</p>}
             {ki && (
               <p className={ki.limit?.warnung ? "fehler" : "leise"}>
                 Kosten dieses Aufrufs: {(ki.kostenCent / 100).toLocaleString("de-DE", { style: "currency", currency: "EUR", minimumFractionDigits: 3 })}.
