@@ -6,9 +6,13 @@ export type Preis = { ein: number; aus: number };
 /** Vorsichtige Standardpreise (eher hoch angesetzt), falls nichts eingestellt ist. */
 export const STANDARD_PREIS: Preis = { ein: 1.5, aus: 9 };
 
+/** Claude Sonnet 5.5 laut Anthropic-Preisliste (Stand 03.11.2026) [prüfen]. */
+export const CLAUDE_PREIS: Preis = { ein: 2, aus: 10 };
+
 export function preisAus(env: Record<string, string | undefined>): Preis {
   const ein = Number(env.KI_PREIS_EIN), aus = Number(env.KI_PREIS_AUS);
-  return { ein: Number.isFinite(ein) && ein > 0 ? ein : STANDARD_PREIS.ein, aus: Number.isFinite(aus) && aus > 0 ? aus : STANDARD_PREIS.aus };
+  const basis = env.KI_ANBIETER === 'claude' ? CLAUDE_PREIS : STANDARD_PREIS;
+  return { ein: Number.isFinite(ein) && ein > 0 ? ein : basis.ein, aus: Number.isFinite(aus) && aus > 0 ? aus : basis.aus };
 }
 
 /** Kosten in Cent (4 Nachkommastellen). Denk-Tokens zählen wie Ausgabe. */
