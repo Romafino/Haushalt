@@ -62,6 +62,7 @@ export function gemini(schluessel: string, modell: string, abrufen: typeof fetch
       });
       if (r.status === 429) throw new KiFehler('kontingent', 'Das Kontingent der KI ist gerade ausgeschöpft. Bitte später erneut versuchen.', await googleFehler(r));
       if (r.status === 404) throw new KiFehler('modell', `Das KI-Modell „${modell}“ ist mit diesem Schlüssel nicht nutzbar. Bitte in Vercel GEMINI_MODELL ändern (Test: /api/ki/test).`, await googleFehler(r));
+      if (r.status === 503) throw new KiFehler('http_503', 'Die KI ist gerade überlastet. Bitte in ein paar Minuten noch einmal versuchen.', await googleFehler(r));
       if (!r.ok) throw new KiFehler('http_' + r.status, 'Die KI ist gerade nicht erreichbar (' + r.status + ').', await googleFehler(r));
       return geminiAntwort(await r.json());
     },

@@ -34,6 +34,7 @@ describe('Gemini', () => {
     const mit = (status: number) => (async () => new Response('x', { status })) as typeof fetch;
     await expect(gemini('k', 'm', mit(429)).auslesen('p', [])).rejects.toMatchObject({ code: 'kontingent' });
     await expect(gemini('k', 'm', mit(500)).auslesen('p', [])).rejects.toMatchObject({ code: 'http_500' });
+    await expect(gemini('k', 'm', mit(503)).auslesen('p', [])).rejects.toMatchObject({ code: 'http_503', message: expect.stringContaining('überlastet') });
   });
 
   it('Modelle: nur solche mit generateContent, ohne Präfix', async () => {
