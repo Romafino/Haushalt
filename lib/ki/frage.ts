@@ -5,6 +5,8 @@ import type { ListenEintrag } from '@/lib/schwaerzen/liste';
 
 export const MAX_FRAGE = 1000;
 export const MAX_SEITE = 12000;
+/** Seiten je Frage: 12, nennt die Frage einen Vertrag 20 (Bedingungen sind lang; Wunsch 17.11.2026). */
+export const MAX_SEITEN = 12, MAX_SEITEN_VERTRAG = 20;
 
 /** Stichtag aus der Frage: TT.MM.JJJJ oder JJJJ-MM-TT, sonst heute. */
 export function stichtagAus(frage: string, heute: string): string {
@@ -44,13 +46,21 @@ export function genannteVertraege(frage: string, vertraege: VertragLike[]): stri
 }
 
 /** Fundstellen-Seiten aus den Steckbriefen dieser Verträge (höchstens max), damit die Antwort die passenden Bedingungen liest. */
-export function fundSeiten(dokumente: DokLike[], vertragIds: string[], max = 8): { dokumentId: string; seiten: number[] }[] {
+export function fundSeiten(dokumente: DokLike[], vertragIds: string[], max = 14): { dokumentId: string; seiten: number[] }[] {
   const out: { dokumentId: string; seiten: number[] }[] = [];
   let n = 0;
   for (const d of dokumente) {
     if (n >= max || !vertragIds.includes(String(d.vertragId ?? '')) || !d.steckbrief || typeof d.steckbrief !== 'object') continue;
-    const fs = (d.steckbrief as { fundstellen?: { seite?: unknown }[] }).fundstellen;
-    const nr = Array.from(new Set((Array.isArray(fs) ? fs : []).map((x) => Number(x?.seite)).filter((x) => Number.isInteger(x) && x >= 1 && x <= (Number(d.seiten) || 1)))).sort((a, b) => a - b).slice(0, max - n);
+    const fs = (d.steckbrief as { fundstellen?: { seite?: unknown; bisSeite?: unknown }[] }).fundstellen;
+    const alle: number[] = [];
+    for (const x of Array.isArray(fs) ? fs : []) {
+      const von = Number(x?.seite), bis = Number(x?.bisSeite);
+      if (!Number.isInteger(von)) continue;
+      // Abschnitt über mehrere Seiten (bisSeite), höchstens 6 Seiten je Fundstelle
+      const ende = Number.isInteger(bis) && bis >= von ? Math.min(bis, von + 5) : von;
+      for (let s = von; s <= ende; s++) alle.push(s);
+    }
+    const nr = Array.from(new Set(alle.filter((x) => x >= 1 && x <= (Number(d.seiten) || 1)))).sort((a, b) => a - b).slice(0, max - n);
     if (nr.length) { out.push({ dokumentId: d.id, seiten: nr }); n += nr.length; }
   }
   return out;

@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, expect, it } from 'vitest';
 import * as R from '@/lib/regeln';
-import { fundSeiten, genannteVertraege, REGELN } from './frage';
+import { fundSeiten, genannteVertraege, MAX_SEITEN, MAX_SEITEN_VERTRAG, REGELN } from './frage';
 
 const H = '2026-11-17';
 const S: any = {
@@ -55,5 +55,14 @@ describe('Seitenwahl nach genanntem Vertrag', () => {
     expect(fundSeiten(S.dokumente, ['k1'])).toEqual([{ dokumentId: 'd1', seiten: [3, 21] }]);
     expect(fundSeiten(S.dokumente, ['k1'], 1)).toEqual([{ dokumentId: 'd1', seiten: [3] }]);
     expect(fundSeiten(S.dokumente, [])).toEqual([]);
+  });
+  it('Abschnitt über mehrere Seiten (bisSeite) wird ganz gelesen, höchstens 6 Seiten je Fundstelle, zusammen höchstens 14', () => {
+    const d = [{ id: 'x', vertragId: 'k1', seiten: 60, steckbrief: { fundstellen: [{ thema: 'Vollkasko', seite: 20, bisSeite: 23 }, { thema: 'lang', seite: 30, bisSeite: 50 }, { thema: 'verdreht', seite: 10, bisSeite: 2 }] } }];
+    expect(fundSeiten(d, ['k1'])).toEqual([{ dokumentId: 'x', seiten: [10, 20, 21, 22, 23, 30, 31, 32, 33, 34, 35] }]);
+    const viel = [{ id: 'y', vertragId: 'k1', seiten: 60, steckbrief: { fundstellen: [1, 10, 20].map((s) => ({ seite: s, bisSeite: s + 5 })) } }];
+    expect(fundSeiten(viel, ['k1'])[0].seiten).toHaveLength(14);
+  });
+  it('Seitenlimit: 12, mit genanntem Vertrag 20', () => {
+    expect([MAX_SEITEN, MAX_SEITEN_VERTRAG]).toEqual([12, 20]);
   });
 });
