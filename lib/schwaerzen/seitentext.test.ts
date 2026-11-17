@@ -7,25 +7,25 @@ const L = [{ text: 'Max Mustermann', ersatz: '[Vater]' }, { text: 'Musterweg 5',
 let x = 0;
 const w = (str: string, y: number): Stueck => { const s = { str, x0: x, x1: x + str.length * 10, y0: y, y1: y + 12 }; x += str.length * 10 + 6; return s; };
 const zeile = (y: number, ...worte: string[]) => { x = 0; return worte.map((t) => w(t, y)); };
-const STUECKE = [...zeile(0, 'Herrn', 'Max', 'Mustermann'), ...zeile(40, 'Vertrag', '71206680', 'Erika'), ...zeile(80, 'Musterweg', '5')];
+const STUECKE = [...zeile(0, 'Herrn', 'Max', 'Mustermann'), ...zeile(40, 'Vertragsnr.', '71206680', 'Erika'), ...zeile(80, 'Musterweg', '5')];
 
 describe('seitenText', () => {
-  it('automatische Balken: Liste und lange Nummern werden zu Platzhaltern', () => {
+  it('automatische Balken: Liste und Kundennummern werden zu Platzhaltern (mit Art der Nummer)', () => {
     const balken = autoBalken(STUECKE, L);
-    expect(balken.filter((b) => b.quelle === 'ziffern')).toHaveLength(1);
-    expect(seitenText(STUECKE, balken, L)).toBe('Herrn [Vater]\nVertrag [Nummer] Erika\n[Adresse]');
+    expect(balken.filter((b) => b.quelle === 'kundennummer')).toHaveLength(1);
+    expect(seitenText(STUECKE, balken, L)).toBe('Herrn [Vater]\nVertragsnr. [Vertragsnummer] Erika\n[Adresse]');
   });
 
   it('von Hand gezogener Balken (Erika) ersetzt das Wort, auch ohne Listeneintrag', () => {
     const erika = STUECKE.find((s) => s.str === 'Erika')!;
     const hand = { x: erika.x0 - 2, y: erika.y0 - 2, w: erika.x1 - erika.x0 + 4, h: 16, label: '[Mutter]' };
-    expect(seitenText(STUECKE, [hand], L)).toBe('Herrn [Vater]\nVertrag [Nummer] [Mutter]\n[Adresse]');
+    expect(seitenText(STUECKE, [hand], L)).toBe('Herrn [Vater]\nVertragsnr. [Vertragsnummer] [Mutter]\n[Adresse]');
   });
 
   it('Balken ohne gültigen Platzhalter → [geschwärzt]; zweite Absicherung über die Liste greift auch ohne Balken', () => {
     const erika = STUECKE.find((s) => s.str === 'Erika')!;
     expect(seitenText(STUECKE, [{ x: erika.x0, y: erika.y0, w: 60, h: 12, label: 'Mutter' }], L)).toContain('[geschwärzt]');
-    expect(seitenText(STUECKE, [], L)).toBe('Herrn [Vater]\nVertrag [Nummer] Erika\n[Adresse]');
+    expect(seitenText(STUECKE, [], L)).toBe('Herrn [Vater]\nVertragsnr. [Vertragsnummer] Erika\n[Adresse]');
   });
 
   it('ohne erkannte Wörter: leerer Text', () => {
@@ -64,8 +64,8 @@ describe('musterBereiche (auch im Bild schwärzen)', () => {
     x = 0;
     const st = [...zeile(0, 'Kundennr.', 'AB-12/7'), ...zeile(40, 'geb.', 'am', '03.05.1970'), ...zeile(80, 'Frau', 'Anna', 'Beispiel')];
     const b = autoBalken(st, L);
-    expect(b.map((x) => x.label).sort()).toEqual(['[Geburtsdatum]', '[Name]', '[Nummer]']);
-    expect(seitenText(st, b, L)).toBe('Kundennr. [Nummer]\ngeb. am [Geburtsdatum]\nFrau [Name]');
+    expect(b.map((x) => x.label).sort()).toEqual(['[Geburtsdatum]', '[Kundennummer]', '[Name]']);
+    expect(seitenText(st, b, L)).toBe('Kundennr. [Kundennummer]\ngeb. am [Geburtsdatum]\nFrau [Name]');
   });
 });
 

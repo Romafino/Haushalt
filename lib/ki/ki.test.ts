@@ -37,13 +37,13 @@ describe('Antwort lesen', () => {
   });
   it('bereinigt: unbekannte Werte, fremde IDs, Nummernfelder im Steckbrief; Nummern in Texten werden geschwärzt, Summen bleiben', () => {
     const roh = {
-      dokument: { typ: 'Police', titel: 'Hausrat Police 71206680', datum: '2026-01-15', gueltigVon: 'ab Januar' },
+      dokument: { typ: 'Police', titel: 'Hausrat Police Vers.-Nr. 71206680', datum: '2026-01-15', gueltigVon: 'ab Januar' },
       vertrag: { kurzname: 'Hausrat', art: 'Versicherung', beitrag: 120, zahlweise: 'jährlich', fristWert: 3, fristEinheit: 'Monate' },
       bezug: { vertragId: 'fremd', dingId: null, firmaId: 'f1' },
       steckbrief: { gefahren: ['Feuer'], summen: [{ was: 'Hausrat', betrag: '65.000 €' }], versicherungsnummer: '123', selbstbeteiligung: '150 €' },
     };
     const v = vorschlagAus(roh, { vertraege: ['v1'], dinge: [], firmen: ['f1'] });
-    expect(v.dokument).toEqual({ typ: 'Police', titel: 'Hausrat Police [Nummer]', datum: '2026-01-15' });
+    expect(v.dokument).toEqual({ typ: 'Police', titel: 'Hausrat Police Vers.-Nr. [Versicherungsnummer]', datum: '2026-01-15' });
     expect(v.vertrag.zahlweise).toBeUndefined(); // „jährlich“ ist kein erlaubter Wert
     expect(v.bezug).toEqual({ vertragId: null, dingId: null, firmaId: 'f1' });
     expect(v.steckbrief).toEqual({ gefahren: ['Feuer'], summen: [{ was: 'Hausrat', betrag: '65.000 €' }], selbstbeteiligung: '150 €' });
@@ -51,7 +51,10 @@ describe('Antwort lesen', () => {
   it('Klartext-Sperre: IBAN oder lange Nummer im eingehenden Text', () => {
     expect(klartextVerdacht(['Beitrag 120,00 €, gültig ab 01.01.2026', 'Summe 65.000 €'])).toBe(false);
     expect(klartextVerdacht(['IBAN DE89 3704 0044 0532 0130 00'])).toBe(true);
-    expect(klartextVerdacht(['Vertrag 71206680'])).toBe(true);
+    expect(klartextVerdacht(['Vertragsnr. 71206680'])).toBe(true);
+    // laut Plan 17.11.2026: Zahlen ohne Bezeichnung und Postleitzahlen sperren nicht mehr
+    expect(klartextVerdacht(['Vertrag 71206680, 80634 München'])).toBe(false);
+    expect(klartextVerdacht(['erreichbar unter 0151 23456789'])).toBe(true);
   });
 });
 

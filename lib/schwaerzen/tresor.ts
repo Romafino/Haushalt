@@ -33,15 +33,22 @@ export function tresorAus(roh: unknown): Tresor {
   return out;
 }
 
-/** Für das Schwärzen: jede Nummer als Listeneintrag „[Nummer]“, zusätzlich ohne Trennzeichen (HR-7120 6680 → HR71206680). */
+/** Platzhalter je Art („[Versicherungsnummer]“ …) – so weiß das Gerät später, welche Nummer an die Stelle gehört. */
+export const platzhalter = (art: Art) => `[${art}]`;
+
+/** Für das Schwärzen: jede Nummer als Listeneintrag mit dem Platzhalter ihrer Art, zusätzlich ohne Trennzeichen (HR-7120 6680 → HR71206680). */
 export function tresorAlsListe(t: Tresor): ListenEintrag[] {
-  const texte = new Set<string>();
+  const out = new Map<string, string>();
   for (const l of Object.values(t)) for (const x of l) {
-    texte.add(x.nummer);
-    const kompakt = x.nummer.replace(/[\s./-]+/g, '');
-    if (kompakt.length >= 3) texte.add(kompakt);
+    for (const v of [x.nummer, x.nummer.replace(/[\s./-]+/g, '')]) if (v.length >= 3 && !out.has(v)) out.set(v, platzhalter(x.art));
   }
-  return [...texte].filter((x) => x.length >= 3).map((text) => ({ text, ersatz: '[Nummer]' }));
+  return [...out].map(([text, ersatz]) => ({ text, ersatz }));
+}
+
+/** Auf dem Gerät: Platzhalter einer Art durch die Nummer des zugehörigen Vertrags/Schadenfalls ersetzen (nur Anzeige, nie speichern). */
+export function nummernEinsetzen(text: string, nummern: Nummer[] | undefined): string {
+  if (!nummern?.length) return text;
+  return ARTEN.reduce((t, art) => { const n = nummern.find((x) => x.art === art); return n ? t.split(platzhalter(art)).join(n.nummer) : t; }, text);
 }
 
 /** Kündigungsentwurf: [Kundennummer] mit der passenden Nummer füllen (Kunden- vor Versicherungs- vor Vertragsnummer). Nur auf dem Gerät. */
