@@ -7,7 +7,7 @@ import { anonymisieren } from "@/lib/schwaerzen";
 import { listenTreffer } from "@/lib/schwaerzen/seitentext";
 import type { ListenEintrag } from "@/lib/schwaerzen/liste";
 import { textSauber } from "@/lib/ki/antwort";
-import { frageKontext, frageVerzeichnis, fundSeiten, genannteVertraege, MAX_SEITEN, MAX_SEITEN_VERTRAG, stichtagAus, verweise, type FrageSeite } from "@/lib/ki/frage";
+import { frageKontext, frageVerzeichnis, frageWoerter, fundSeiten, genannteVertraege, seitenNachWoertern, MAX_SEITEN, MAX_SEITEN_VERTRAG, stichtagAus, verweise, type FrageSeite } from "@/lib/ki/frage";
 import type { Akte, Eintrag } from "@/lib/akte/abbilden";
 import * as R from "@/lib/regeln";
 
@@ -41,22 +41,26 @@ export async function fragen(haushaltId: string, frageRoh: string, liste: Listen
   if (s.error) throw new Error("Die Suche in den Dokumenten hat nicht geklappt.");
   let roh = ((s.data ?? []) as { dokument_id: string; nr: number; text: string }[]).filter((x) => inKraft(x.dokument_id, stichtag));
 
-  // Wird ein Vertrag genannt („Vollkasko“), zuerst die Fundstellen aus seinem Steckbrief lesen, dann die Suchtreffer (zusammen höchstens 20, sonst 12)
+  // Wird ein Vertrag genannt („Vollkasko“): seine Seiten auf dem Gerät nach den Fragewörtern ordnen (meiste Treffer zuerst),
+  // dann passende Fundstellen aus dem Steckbrief, dann die übrigen Suchtreffer – zusammen höchstens 20 (sonst 12)
   const genannt = genannteVertraege(frage, akte.vertraege).filter((id) => akte.dokumente.some((d) => d.vertragId === id && inKraft(d.id, stichtag)));
-  const fund = fundSeiten(akte.dokumente.filter((d) => inKraft(d.id, stichtag)), genannt);
-  if (fund.length) {
-    const z = await sb.from("dokument_seiten").select("dokument_id, nr, text").eq("haushalt_id", haushaltId).in("dokument_id", fund.map((x) => x.dokumentId));
+  const genannteDoks = akte.dokumente.filter((d) => genannt.includes(String(d.vertragId ?? "")) && inKraft(d.id, stichtag));
+  const vorne: { dokument_id: string; nr: number; text: string }[] = [];
+  if (genannteDoks.length) {
+    const z = await sb.from("dokument_seiten").select("dokument_id, nr, text").eq("haushalt_id", haushaltId).in("dokument_id", genannteDoks.map((d) => d.id));
     if (!z.error) {
-      const vorne = (z.data ?? []).filter((x) => fund.some((y) => y.dokumentId === x.dokument_id && y.seiten.includes(x.nr)));
-      const istVorne = (x: { dokument_id: string; nr: number }) => vorne.some((y) => y.dokument_id === x.dokument_id && y.nr === x.nr);
-      const dazu = roh.filter((x) => !istVorne(x));
-      // Treffer aus den genannten Verträgen vor anderen Suchtreffern
+      const alle = (z.data ?? []) as { dokument_id: string; nr: number; text: string }[];
+      const treffer = seitenNachWoertern(alle, frageWoerter(frage), 10);
+      const fund = fundSeiten(genannteDoks, genannt, 14, frage);
+      const ausFund = fund.flatMap((y) => y.seiten.map((nr) => alle.find((x) => x.dokument_id === y.dokumentId && x.nr === nr))).filter((x): x is { dokument_id: string; nr: number; text: string } => !!x);
+      const gleich = (a: { dokument_id: string; nr: number }, b: { dokument_id: string; nr: number }) => a.dokument_id === b.dokument_id && a.nr === b.nr;
+      for (const x of [...treffer, ...ausFund]) if (!vorne.some((y) => gleich(x, y))) vorne.push(x);
+      const dazu = roh.filter((x) => !vorne.some((y) => gleich(x, y)));
       const ausGenannt = (x: { dokument_id: string }) => genannt.includes(String(doks.get(x.dokument_id)?.vertragId ?? ""));
       roh = [...vorne, ...dazu.filter(ausGenannt), ...dazu.filter((x) => !ausGenannt(x))].slice(0, MAX_SEITEN_VERTRAG);
     }
   }
-
-  if (!fund.length) roh = roh.slice(0, MAX_SEITEN);
+  if (!vorne.length) roh = roh.slice(0, MAX_SEITEN);
 
   if (!roh.length && doks.size) {
     status("Nichts direkt gefunden – die KI sucht passende Seiten aus …");
