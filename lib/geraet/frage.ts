@@ -7,7 +7,7 @@ import { anonymisieren } from "@/lib/schwaerzen";
 import { listenTreffer } from "@/lib/schwaerzen/seitentext";
 import type { ListenEintrag } from "@/lib/schwaerzen/liste";
 import { textSauber } from "@/lib/ki/antwort";
-import { frageKontext, frageVerzeichnis, stichtagAus, verweise, type FrageSeite } from "@/lib/ki/frage";
+import { frageKontext, frageVerzeichnis, fundSeiten, genannteVertraege, stichtagAus, verweise, type FrageSeite } from "@/lib/ki/frage";
 import type { Akte, Eintrag } from "@/lib/akte/abbilden";
 import * as R from "@/lib/regeln";
 
@@ -28,9 +28,10 @@ export async function fragen(haushaltId: string, frageRoh: string, liste: Listen
   const datumGenannt = stichtag !== heute;
   const doks = new Map(akte.dokumente.map((d) => [d.id, d] as [string, Eintrag]));
   const { hin, zurueck } = verweise([...doks.keys()]);
+  // Seiten nur aus Dokumenten ohne Vertrag, von Verträgen in Kraft – oder (bei Fragen zu heute) von Verträgen, die erst später beginnen
   const inKraft = (dokumentId: string, tag: string) => {
     const d = doks.get(dokumentId), v = d?.vertragId ? akte.vertraege.find((x) => x.id === d.vertragId) : null;
-    return !!d && (!v || R.aktivAm(v, akte.fassungen, tag));
+    return !!d && (!v || R.aktivAm(v, akte.fassungen, tag) || (tag >= heute && R.kuenftigAm(v, tag)));
   };
   const sb = supabaseBrowser();
   let kosten = 0;
@@ -39,6 +40,21 @@ export async function fragen(haushaltId: string, frageRoh: string, liste: Listen
   const s = await sb.rpc("seiten_suchen", { p_haushalt: haushaltId, p_frage: frage });
   if (s.error) throw new Error("Die Suche in den Dokumenten hat nicht geklappt.");
   let roh = ((s.data ?? []) as { dokument_id: string; nr: number; text: string }[]).filter((x) => inKraft(x.dokument_id, stichtag));
+
+  // Wird ein Vertrag genannt („Vollkasko“), zuerst die Fundstellen aus seinem Steckbrief lesen, dann die Suchtreffer (zusammen höchstens 12)
+  const genannt = genannteVertraege(frage, akte.vertraege).filter((id) => akte.dokumente.some((d) => d.vertragId === id && inKraft(d.id, stichtag)));
+  const fund = fundSeiten(akte.dokumente.filter((d) => inKraft(d.id, stichtag)), genannt);
+  if (fund.length) {
+    const z = await sb.from("dokument_seiten").select("dokument_id, nr, text").eq("haushalt_id", haushaltId).in("dokument_id", fund.map((x) => x.dokumentId));
+    if (!z.error) {
+      const vorne = (z.data ?? []).filter((x) => fund.some((y) => y.dokumentId === x.dokument_id && y.seiten.includes(x.nr)));
+      const istVorne = (x: { dokument_id: string; nr: number }) => vorne.some((y) => y.dokument_id === x.dokument_id && y.nr === x.nr);
+      const dazu = roh.filter((x) => !istVorne(x));
+      // Treffer aus den genannten Verträgen vor anderen Suchtreffern
+      const ausGenannt = (x: { dokument_id: string }) => genannt.includes(String(doks.get(x.dokument_id)?.vertragId ?? ""));
+      roh = [...vorne, ...dazu.filter(ausGenannt), ...dazu.filter((x) => !ausGenannt(x))].slice(0, 12);
+    }
+  }
 
   if (!roh.length && doks.size) {
     status("Nichts direkt gefunden – die KI sucht passende Seiten aus …");
