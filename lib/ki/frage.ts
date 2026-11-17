@@ -28,8 +28,32 @@ type AkteLike = Parameters<typeof R.akteKontext>[0];
 /** Akte am Stichtag für die KI; Dokument-IDs im Steckbrief als Verweis. */
 export function frageKontext(S: AkteLike, stichtag: string, heute: string, hin: Map<string, string>) {
   const k = R.akteKontext(S, stichtag, heute);
-  for (const v of k.inKraft) if (v.steckbrief && v.steckbrief.dokumentId) v.steckbrief.dokumentId = hin.get(v.steckbrief.dokumentId) ?? null;
+  for (const v of [...k.inKraft, ...k.kuenftig]) if (v.steckbrief && v.steckbrief.dokumentId) v.steckbrief.dokumentId = hin.get(v.steckbrief.dokumentId) ?? null;
   return k;
+}
+
+type VertragLike = { id: string; kurzname?: unknown; art?: unknown };
+type DokLike = { id: string; vertragId?: unknown; seiten?: unknown; steckbrief?: unknown };
+const WORT = (t: string) => t.toLowerCase().split(/[^a-zäöüß0-9]+/).filter((w) => w.length >= 4);
+const ALLTAG = new Set(['versicherung', 'vertrag', 'vertrags', 'police', 'haftpflicht']); // zu allgemein, um einen Vertrag zu erkennen
+
+/** Verträge, deren Name in der Frage vorkommt (z. B. „Vollkasko“ → „Kfz Haftpflicht + Vollkasko“). Allgemeine Wörter zählen nicht. */
+export function genannteVertraege(frage: string, vertraege: VertragLike[]): string[] {
+  const f = frage.toLowerCase();
+  return vertraege.filter((v) => WORT(String(v.kurzname ?? '')).some((w) => !ALLTAG.has(w) && f.includes(w))).map((v) => v.id);
+}
+
+/** Fundstellen-Seiten aus den Steckbriefen dieser Verträge (höchstens max), damit die Antwort die passenden Bedingungen liest. */
+export function fundSeiten(dokumente: DokLike[], vertragIds: string[], max = 8): { dokumentId: string; seiten: number[] }[] {
+  const out: { dokumentId: string; seiten: number[] }[] = [];
+  let n = 0;
+  for (const d of dokumente) {
+    if (n >= max || !vertragIds.includes(String(d.vertragId ?? '')) || !d.steckbrief || typeof d.steckbrief !== 'object') continue;
+    const fs = (d.steckbrief as { fundstellen?: { seite?: unknown }[] }).fundstellen;
+    const nr = Array.from(new Set((Array.isArray(fs) ? fs : []).map((x) => Number(x?.seite)).filter((x) => Number.isInteger(x) && x >= 1 && x <= (Number(d.seiten) || 1)))).sort((a, b) => a - b).slice(0, max - n);
+    if (nr.length) { out.push({ dokumentId: d.id, seiten: nr }); n += nr.length; }
+  }
+  return out;
 }
 
 /** Dokumentverzeichnis (ohne Seitentext) mit Verweisen statt IDs. */
@@ -50,6 +74,7 @@ export function auswahlPrompt(frage: string, verzeichnis: unknown[], heute: stri
 export const REGELN = 'Regeln:\n' +
   '- Antworte nur aus den Daten unten. Erfinde nichts.\n' +
   '- Versicherungsschutz und laufende Kosten: Nur Verträge unter "inKraft" zählen. Verträge unter "nichtInKraft" bieten am Stichtag keinen Schutz; nenne sie höchstens als Hinweis.\n' +
+  '- Verträge unter "kuenftig" sind abgeschlossen, beginnen aber erst am Datum "beginnt". Fragen zum Inhalt (was ist versichert, Leistungen, Summen, Selbstbeteiligung, Ausschlüsse) beantworte vollständig aus ihrem Steckbrief und den Seiten und sag dazu „gilt ab <beginnt>“. Nur wer nach Schutz am Stichtag fragt, bekommt den Hinweis, dass der Vertrag dann noch nicht gilt.\n' +
   '- Wenn etwas im Steckbrief und in den Seiten nicht zu finden ist, schreibe „unklar: in den gespeicherten Unterlagen nicht gefunden“, niemals „nicht versichert“. "steckbrief": null heißt, dass keine Unterlagen gespeichert sind, also unklar.\n' +
   '- Nenne zu jeder Aussage die Quelle: Dokument, Seite und Klausel (z. B. „Hausrat 2026, S. 3, § 5“). Für Angaben aus den Einträgen: „Eintrag in der App“.\n' +
   '- Keine Rechts-, Steuer- oder Abschlussberatung. Keine Empfehlung, etwas abzuschließen oder zu kündigen.\n' +

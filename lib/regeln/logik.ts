@@ -377,10 +377,19 @@ function aktivAm(v: any, fassungen: any, tag: any) {
   const ende = v.gekuendigtZum || v.laufzeitende || v.erstlaufzeitEnde;
   return !ende || tag <= ende;
 }
-/* Was Claude für eine Frage sehen darf: Stand am Stichtag, Steckbriefe nur von Verträgen, die dann in Kraft waren. */
+/* Beginnt der Vertrag erst nach dem Tag (abgeschlossen, noch nicht in Kraft)? Angebote und beendete nie; gekündigt vor Beginn nie. Ergänzt 17.11.2026. */
+function kuenftigAm(v: any, tag: any) {
+  if (v.status === 'angebot' || v.status === 'beendet') return false;
+  const start = v.beginn || v.abschluss;
+  if (!start || start <= tag) return false;
+  return !(v.gekuendigtZum && v.gekuendigtZum < start);
+}
+/* Was Claude für eine Frage sehen darf: Stand am Stichtag, Steckbriefe nur von Verträgen, die dann in Kraft waren.
+   Ergänzt 17.11.2026: Bei Fragen zu heute (oder später) kommen Verträge, die erst später beginnen, mit Steckbrief unter "kuenftig" dazu –
+   für Fragen zum Inhalt; Schutz am Stichtag bieten sie nicht (Regel im Prompt). Abgelaufene Verträge bleiben ohne Steckbrief. */
 function akteKontext(S: any, tag: any, heuteTag: any) {
   const firma = (id: any) => (S.firmen.find((f: any) => f.id === id) || {}), ding = (id: any) => (S.dinge.find((d: any) => d.id === id) || {});
-  const inKraft = [], nicht = [];
+  const inKraft = [], nicht = [], kuenftig = [];
   for (const v of S.vertraege) {
     if (aktivAm(v, S.fassungen, tag)) {
       const st = standAm(v, S.fassungen, tag), sb = steckbriefAm(v.id, S.dokumente, tag), kj = st.status === 'aktiv' ? kuendigungJetzt(st, tag) : null, kb = kj && kj.art === 'termin' ? kj.bis : null;
@@ -389,10 +398,19 @@ function akteKontext(S: any, tag: any, heuteTag: any) {
       if (sb) o.steckbrief = Object.assign({ dokumentId: sb.id, dokument: sb.titel, gueltigVon: sb.gueltigVon || sb.datum, gueltigBis: sb.gueltigBis }, sb.steckbrief);
       else if (istVers(v)) o.steckbrief = null;
       inKraft.push(JSON.parse(JSON.stringify(o)));
+    } else if (tag >= heuteTag && kuenftigAm(v, tag)) {
+      const ab = v.beginn || v.abschluss, sb = steckbriefAm(v.id, S.dokumente, ab) || S.dokumente.filter((d: any) => d.vertragId === v.id && d.steckbrief)
+        .sort((a: any, b: any) => (a.gueltigVon || a.datum || '') < (b.gueltigVon || b.datum || '') ? 1 : -1)[0] || null;
+      const st = standAm(v, S.fassungen, ab);
+      const o: any = { vertrag: v.kurzname, art: v.art, firma: firma(v.firmaId).name, hotline: firma(v.firmaId).hotline, beginnt: ab, fuerWen: rollenVon(v).join(', ') || undefined,
+        bezug: dingeVon(v).map(id => ding(id).name).filter(Boolean).join(', ') || undefined, beitragProMonat: st.beitrag ? Math.round(proMonat(st) * 100) / 100 : undefined, laufzeitende: st.laufzeitende };
+      if (sb) o.steckbrief = Object.assign({ dokumentId: sb.id, dokument: sb.titel, gueltigVon: sb.gueltigVon || sb.datum, gueltigBis: sb.gueltigBis }, sb.steckbrief);
+      else if (istVers(v)) o.steckbrief = null;
+      kuenftig.push(JSON.parse(JSON.stringify(o)));
     } else nicht.push({ vertrag: v.kurzname, art: v.art, status: v.status, ende: v.gekuendigtZum || v.laufzeitende, beginn: v.beginn || v.abschluss });
   }
   return {
-    stichtag: tag, heute: heuteTag, inKraft, nichtInKraft: nicht,
+    stichtag: tag, heute: heuteTag, inKraft, kuenftig, nichtInKraft: nicht,
     dinge: S.dinge.map((d: any) => ({ name: d.name, bereich: d.kategorie, hersteller: d.hersteller, modell: d.modell, jahr: d.jahr, status: d.status })),
     belege: S.belege.slice().sort((a: any, b: any) => (a.datum || '') < (b.datum || '') ? 1 : -1).slice(0, 80).map((b: any) => ({ wofuer: b.titel, datum: b.datum, firma: firma(b.firmaId).name, ding: ding(b.dingId).name, betrag: b.betrag, arbeitskosten: b.arbeitskosten, steuer: b.steuer, unbar: !!b.unbar, gewaehrleistungBis: gewBis(b) || undefined })),
     termine: alleFristen(S, heuteTag).filter(f => !f.erledigt).map(f => ({ titel: f.titel, datum: f.datum })),
@@ -721,4 +739,4 @@ function kuerzeAufBytes(t: any, maxBytes: any) {
   return dec.decode(roh).replace(/�$/, '') + '\n[…] Der Seitentext war zu lang und wurde hier abgeschnitten.';
 }
 
-export { kuendigungJetzt, fristEnde, kuerzeAufBytes, suche, sucheText, deckung, notfallDaten, vergleich, standAmTag, verbrauch, verbrauchJeJahr, ablesungen, jahresBefunde, jahresStand, webAdresse, istVers, dingeVon, rollenVon, KUEND_STD, SOFORT_STD, sofortListe, setEigene, mitEigenem, lebenListe, naechsterTermin, EIGEN_LISTEN, BASIS, dokMarkdown, mdNamen, icsText, kalenderListe, kalMarkieren, kalGeloescht, exportTabellen, sicherung, importOps, SICHER_COLS, aktivAm, akteKontext, dokVerzeichnis, seitenWunsch, schadenPolicen, schadenErgebnis, FKEYS, fassungAm, standAm, steckbriefAm, fassungOps, lueckePruefung, ereignisFolgen, wartung, dingFolgen, lebensFolgen, LEBEN, kuendigungsText, istKfz, tief, bereinigen, stapel, ENUM, toIso, addDays, addMonths, fmt, diffDays, heute, kuendigenBis, rechenweg, proMonat, laeuft, fixkosten, jederzeit, fortschreiben, gewBis, steuer35a, alleFristen, wichtig, MAX35A };
+export { kuenftigAm, kuendigungJetzt, fristEnde, kuerzeAufBytes, suche, sucheText, deckung, notfallDaten, vergleich, standAmTag, verbrauch, verbrauchJeJahr, ablesungen, jahresBefunde, jahresStand, webAdresse, istVers, dingeVon, rollenVon, KUEND_STD, SOFORT_STD, sofortListe, setEigene, mitEigenem, lebenListe, naechsterTermin, EIGEN_LISTEN, BASIS, dokMarkdown, mdNamen, icsText, kalenderListe, kalMarkieren, kalGeloescht, exportTabellen, sicherung, importOps, SICHER_COLS, aktivAm, akteKontext, dokVerzeichnis, seitenWunsch, schadenPolicen, schadenErgebnis, FKEYS, fassungAm, standAm, steckbriefAm, fassungOps, lueckePruefung, ereignisFolgen, wartung, dingFolgen, lebensFolgen, LEBEN, kuendigungsText, istKfz, tief, bereinigen, stapel, ENUM, toIso, addDays, addMonths, fmt, diffDays, heute, kuendigenBis, rechenweg, proMonat, laeuft, fixkosten, jederzeit, fortschreiben, gewBis, steuer35a, alleFristen, wichtig, MAX35A };
