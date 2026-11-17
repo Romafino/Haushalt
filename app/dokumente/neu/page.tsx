@@ -10,6 +10,8 @@ import { useAkte } from "@/lib/akte/useAkte";
 import { dateienLaden, erkennen, type Seite } from "@/lib/geraet/seiten";
 import { dokumentSpeichern } from "@/lib/geraet/speichern";
 import { autoBalken, seitenText } from "@/lib/schwaerzen/seitentext";
+import { nummernFinden } from "@/lib/schwaerzen/schutz";
+import { zeileAus, zeilen } from "@/lib/schwaerzen/such";
 import { freitextPruefen } from "@/lib/akte/freitext";
 import { kiAuslesen, type KiAntwort } from "@/lib/geraet/ki";
 import { seitenInGrenze } from "@/lib/ki/prompt";
@@ -35,6 +37,9 @@ export default function DokumentNeu() {
   const [ki, setKi] = useState<KiAntwort | null>(null);
   const [auswahl, setAuswahl] = useState<Auswahl | null>(null);
   const [hinweise, setHinweise] = useState<string[]>([]);
+  // Tresor: Kundennummern aus dem Original (nur auf dem Gerät), abwählbar; Übernahme nach dem Speichern zum gewählten Vertrag
+  const gefunden = useMemo(() => (seiten ? nummernFinden(seiten.flatMap((x) => (x.stuecke ? (zeilen(x.stuecke) as Parameters<typeof zeileAus>[0][]).map((z) => zeileAus(z).text as string) : []))) : []), [seiten]);
+  const [abgewaehlt, setAbgewaehlt] = useState<string[]>([]);
   // Dubletten: einmal je Dokument prüfen, vor KI-Aufruf bzw. Speichern; nach Bestätigung nicht erneut
   const [dubletten, setDubletten] = useState<Dublette[] | null>(null);
   const [dublettenOk, setDublettenOk] = useState(false);
@@ -113,6 +118,15 @@ export default function DokumentNeu() {
         m = u.meta; ops = u.ops; setHinweise(u.hinweise);
       }
       const id = await dokumentSpeichern({ haushaltId, meta: m, seiten, quelle, liste: sl.liste, ops, id: dokumentId(), status: setStatus });
+      // Nummern in den Tresor beim Vertrag (verschlüsselt, nur auf dem Gerät lesbar)
+      const vertragId = typeof m.vertragId === "string" ? m.vertragId : "";
+      const neu = gefunden.filter((n) => !abgewaehlt.includes(n.art + n.nummer));
+      if (vertragId && neu.length) {
+        const alt = sl.nummern[vertragId] ?? [];
+        const zusammen = [...alt, ...neu.filter((n) => !alt.some((a) => a.art === n.art && a.nummer === n.nummer))];
+        const f = await sl.nummernSpeichern({ ...sl.nummern, [vertragId]: zusammen });
+        if (f) setFehler("Dokument gespeichert, aber die Nummern konnten nicht in den Tresor: " + f);
+      }
       router.replace(`/dokumente/${id}`);
     } catch (e2) {
       setFehler(e2 instanceof Error ? e2.message : "Speichern hat nicht geklappt.");
@@ -218,6 +232,22 @@ export default function DokumentNeu() {
                 <label>Ding<select value={meta.dingId} onChange={(e) => setMeta({ ...meta, dingId: e.target.value })}><option value="">–</option>{akte.dinge.map((d) => <option key={d.id} value={d.id}>{String(d.name)}</option>)}</select></label>
                 <label>Firma<select value={meta.firmaId} onChange={(e) => setMeta({ ...meta, firmaId: e.target.value })}><option value="">–</option>{akte.firmen.map((f) => <option key={f.id} value={f.id}>{String(f.name)}</option>)}</select></label>
               </>
+            )}
+            {gefunden.length > 0 && (
+              <fieldset>
+                <legend>Nummern für den Tresor</legend>
+                <p className="leise">Im Dokument erkannt. Werden verschlüsselt beim Vertrag gespeichert, nur auf euren Geräten sichtbar, nie an die KI. Im Dokument stehen sie als Platzhalter.</p>
+                {gefunden.map((n) => {
+                  const k = n.art + n.nummer;
+                  return (
+                    <label key={k} className="janein">
+                      <input type="checkbox" checked={!abgewaehlt.includes(k)} onChange={(e) => setAbgewaehlt(e.target.checked ? abgewaehlt.filter((x) => x !== k) : [...abgewaehlt, k])} />
+                      <span>{n.art}: <strong>{n.nummer}</strong></span>
+                    </label>
+                  );
+                })}
+                {!(meta.vertragId || (auswahl?.vertrag && auswahl.vertrag !== "")) && <p className="fehler">Übernahme nur mit Vertrag – bitte oben einen Vertrag wählen (oder per KI-Vorschlag zuordnen).</p>}
+              </fieldset>
             )}
             {hinweise.length > 0 && <ul className="leise">{hinweise.map((h, i) => <li key={i}>{h}</li>)}</ul>}
             <button type="submit" disabled={!!status}>Geschwärzt speichern</button>

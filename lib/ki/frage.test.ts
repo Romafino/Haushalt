@@ -52,8 +52,9 @@ describe('Frag die Akte', () => {
   });
 
   it('Server-Sperre und Antwort-Säuberung', () => {
-    expect(klartextVerdacht(['Gilt Vertrag 12345678 noch?'])).toBe(true);
+    expect(klartextVerdacht(['Gilt Vertragsnummer 12345678 noch?'])).toBe(true);
     expect(klartextVerdacht(['Ist mein Fahrrad versichert?'])).toBe(false);
     expect(textSauber('Konto DE89370400440532013000, Nr. 12345678, Hotline 0800 111 2222, Summe 65.000 €')).toBe('Konto [IBAN], Nr. [Nummer], Hotline 0800 111 2222, Summe 65.000 €');
+    expect(textSauber('2005-03-01')).toBe('2005-03-01'); // reines Datumsfeld bleibt
   });
 });

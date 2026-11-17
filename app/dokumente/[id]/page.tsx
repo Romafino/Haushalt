@@ -8,6 +8,9 @@ import { useAkte, verwerfen } from "@/lib/akte/useAkte";
 import { dokumentLoeschen } from "@/lib/geraet/speichern";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 import * as R from "@/lib/regeln";
+import { useSchwaerzliste } from "@/components/schwaerzliste/kontext";
+import { zurueckuebersetzen } from "@/lib/ki/frage";
+import { nummernEinsetzen } from "@/lib/schwaerzen/tresor";
 
 type SeiteAnsicht = { nr: number; text: string; url?: string };
 
@@ -15,6 +18,8 @@ function Dokument() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { akte, haushaltId, fehler } = useAkte();
+  const sl = useSchwaerzliste();
+  useEffect(() => { if (sl.zustand === "unbekannt") void sl.pruefen(); }, [sl]);
   const [seiten, setSeiten] = useState<SeiteAnsicht[] | null>(null);
   const [meldung, setMeldung] = useState("");
   const d = akte?.dokumente.find((x) => x.id === id);
@@ -79,7 +84,7 @@ function Dokument() {
               {/* bewusst <img>: signierte, private URL; kein Umweg über die Bildoptimierung von Vercel */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               {s.url && <img src={s.url} alt={`Seite ${s.nr}, geschwärzt`} className="seitenbild" />}
-              <details><summary>Text</summary><pre className="seitentext">{s.text || "(kein Text)"}</pre></details>
+              <details><summary>Text{sl.zustand === "offen" ? " (Namen und Nummern nur auf diesem Gerät eingesetzt)" : ""}</summary><pre className="seitentext">{(sl.zustand === "offen" ? zurueckuebersetzen(nummernEinsetzen(s.text, d && d.vertragId ? sl.nummern[String(d.vertragId)] : undefined), sl.liste) : s.text) || "(kein Text)"}</pre></details>
             </section>
           ))}
           <section className="karte">

@@ -1,9 +1,10 @@
 /* Geschwärzter Text einer Seite aus erkannten Wörtern (PDF-Textstücke oder Texterkennung) und den Balken.
    Jedes Wort, das zu großen Teilen unter einem Balken liegt, wird durch dessen Platzhalter ersetzt – auch bei Balken,
    die von Hand gezogen wurden. Danach zur Sicherheit noch einmal Liste + Muster (anonymisieren). Reines Modul. */
-import { anonymisieren, balkenFuer, treffer, zeileAus, zeilen } from './index';
+import { treffer, zeileAus, zeilen } from './index';
 import { ANREDE_RE, GEB_RE, NR_BLEIBT, NR_NACKT, NR_RE } from './text';
-import { istMobil, kundenfelder, TECHNIK_DAVOR, telefonTreffer } from './genauer';
+import { istMobil, TECHNIK_DAVOR, telefonTreffer } from './genauer';
+import { ersetzen, schutzBereiche } from './schutz';
 import type { ListenEintrag } from './liste';
 
 export type Stueck = { str: string; x0: number; x1: number; y0: number; y1: number };
@@ -111,36 +112,23 @@ export function anschriftZeilen(zeilenTexte: string[]): { index: number; label: 
   return out;
 }
 
-/** Automatische Balken einer Seite: Liste und IBAN (übernommen, balkenFuer) plus musterBereiche je Zeile. */
+/** Automatische Balken einer Seite – Regeln in schutz.ts (gezielt statt pauschal, Plan 17.11.2026). */
 export function autoBalken(stuecke: Stueck[], liste: ListenEintrag[]): Balken[] {
-  const out: Balken[] = balkenFuer(stuecke, liste.map((e) => ({ text: e.text, label: e.ersatz })), { iban: true });
   const alleZeilen = zeilen(stuecke) as Stueck[][];
-  for (const { index, label } of anschriftZeilen(alleZeilen.map((z) => zeileAus(z).text))) {
-    const zl = zeileAus(alleZeilen[index]), k = zl.kasten(0, zl.text.length), r = Math.max(2, k.h * 0.18), rx = Math.max(3, k.h * 0.45);
-    const neu: Balken = { x: k.x - rx, y: k.y - r, w: k.w + 2 * rx, h: k.h + 2 * r, label, auto: true, quelle: 'anschrift' };
-    if (!out.some((b) => ueberlappung(neu, b) > 0.3)) out.push(neu);
-  }
-  // Felder eines Kundenblocks (Name:, Adresse: …) und Telefonnummern aus der Liste in jeder Schreibweise
   const texte = alleZeilen.map((z) => zeileAus(z).text);
-  const extra = [...kundenfelder(texte), ...texte.flatMap((t, index) => telefonTreffer(t, liste).map((x) => ({ index, ...x })))];
-  for (const f of extra) {
-    const zl = zeileAus(alleZeilen[f.index]), k = zl.kasten(f.start, f.ende), r = Math.max(2, k.h * 0.18), rx = Math.max(3, k.h * 0.45);
-    const neu: Balken = { x: k.x - rx, y: k.y - r, w: k.w + 2 * rx, h: k.h + 2 * r, label: f.label, auto: true, quelle: 'kunde' };
-    if (!out.some((b) => ueberlappung(neu, b) > 0.3)) out.push(neu);
-  }
-  for (const z of alleZeilen) {
-    const zl = zeileAus(z);
-    for (const t of musterBereiche(zl.text)) {
+  const out: Balken[] = [];
+  schutzBereiche(texte, liste).forEach((bereiche, i) => {
+    const zl = zeileAus(alleZeilen[i]);
+    for (const t of bereiche) {
       const k = zl.kasten(t.start, t.ende), r = Math.max(2, k.h * 0.18), rx = Math.max(3, k.h * 0.45);
-      const neu: Balken = { x: k.x - rx, y: k.y - r, w: k.w + 2 * rx, h: k.h + 2 * r, label: t.label, auto: true, quelle: t.label === '[Nummer]' ? 'ziffern' : 'muster' };
-      // Liste und IBAN haben Vorrang: liegt dort schon ein Balken, entfällt der Musterbalken (sonst überlagerte Platzhalter)
-      if (out.some((b) => ueberlappung(neu, b) > 0.3)) continue;
-      out.push(neu);
+      const neu: Balken = { x: k.x - rx, y: k.y - r, w: k.w + 2 * rx, h: k.h + 2 * r, label: t.label, auto: true, quelle: t.art };
+      if (!out.some((b) => ueberlappung(neu, b) > 0.3)) out.push(neu);
     }
-  }
+  });
   return out;
 }
 
+/** Gespeicherter Text einer Seite: Wörter unter Balken → Platzhalter, danach dieselben Regeln noch einmal als Sicherheitsnetz. */
 export function seitenText(stuecke: Stueck[] | null, balken: Balken[], liste: ListenEintrag[]): string {
   if (!stuecke?.length) return '';
   const out: string[] = [];
@@ -154,11 +142,7 @@ export function seitenText(stuecke: Stueck[] | null, balken: Balken[], liste: Li
     }
     out.push(teile.join(' ').replace(/\s+/g, ' ').trim());
   }
-  let text: string = anonymisieren(out.join('\n'), liste).text;
-  for (const t of telefonTreffer(text, liste).reverse()) text = text.slice(0, t.start) + t.label + text.slice(t.ende);
-  for (const t of nummernTreffer(text).reverse()) text = text.slice(0, t.start) + '[Nummer]' + text.slice(t.ende);
-  for (const t of alteDaten(text).reverse()) text = text.slice(0, t.start) + '[Datum]' + text.slice(t.ende);
-  return text;
+  return ersetzen(out.join('\n'), liste);
 }
 
 /** Zweite Prüfung: Welche Einträge der Schwärzliste stehen (noch) im Text? Leere Liste = sauber. */

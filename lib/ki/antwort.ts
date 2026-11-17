@@ -3,9 +3,7 @@
    2. bereinigen() aus dem Regelmodul: nur bekannte Felder und Werte, keine Nummernfelder, nur vorhandene IDs
    3. Klartext-Sperre: Muster (IBAN, Nummern) dürfen auch in der Antwort nicht vorkommen */
 import * as R from '@/lib/regeln';
-import { IBAN_RE } from '@/lib/schwaerzen';
-import { alteDaten, nummernTreffer } from '@/lib/schwaerzen/seitentext';
-import { ibanPlausibel } from '@/lib/schwaerzen/genauer';
+import { ersetzen, kritisch } from '@/lib/schwaerzen/schutz';
 
 export function jsonAus(text: string): unknown {
   const t = String(text ?? '').trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
@@ -23,15 +21,14 @@ export function vorschlagAus(roh: unknown, ids: Ids) {
   return R.tief(v, (s: string) => textSauber(s));
 }
 
-/** IBAN und lange Nummern in einem Text der KI durch Platzhalter ersetzen. */
+/** Text der KI absichern: IBAN, Handynummern, Nummern hinter Bezeichnungen, Namen nach Herr/Frau, alte Daten → Platzhalter.
+    Reine Datumsfelder (JJJJ-MM-TT, z. B. Vertragsbeginn) bleiben. */
 export function textSauber(s: string): string {
-  let t = String(s ?? '').replace(new RegExp(IBAN_RE.source, 'g'), (m) => (ibanPlausibel(m) ? '[IBAN]' : m));
-  for (const x of nummernTreffer(t).reverse()) t = t.slice(0, x.start) + '[Nummer]' + t.slice(x.ende);
-  for (const x of alteDaten(t).reverse()) t = t.slice(0, x.start) + '[Datum]' + t.slice(x.ende);
-  return t;
+  const t = String(s ?? '');
+  return /^\d{4}-\d{2}-\d{2}$/.test(t) ? t : ersetzen(t, [], undefined, true);
 }
 
 /** Server-seitige Sperre: Kommt geschwärzter Text an, darf er keine IBAN und keine langen Nummern mehr enthalten. */
 export function klartextVerdacht(texte: string[]): boolean {
-  return texte.some((t) => [...t.matchAll(new RegExp(IBAN_RE.source, 'g'))].some((m) => ibanPlausibel(m[0])) || nummernTreffer(t).length > 0 || alteDaten(t).length > 0);
+  return texte.some((t) => kritisch(t));
 }

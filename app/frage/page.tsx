@@ -9,6 +9,7 @@ import { useAkte } from "@/lib/akte/useAkte";
 import { fragen, frageSpeichern, tochterFassung, type FrageErgebnis } from "@/lib/geraet/frage";
 import { GespeicherteFragen } from "@/components/gespeicherte-fragen";
 import { zurueckuebersetzen } from "@/lib/ki/frage";
+import { nummernEinsetzen } from "@/lib/schwaerzen/tresor";
 import { frageHolen } from "@/lib/geraet/frage-entwurf";
 import * as R from "@/lib/regeln";
 
@@ -73,7 +74,10 @@ export default function Frage() {
     );
   }
 
-  const anzeige = erg ? (namen ? zurueckuebersetzen(erg.antwort, sl.liste) : erg.antwort) : "";
+  // Nummern nur einsetzen, wenn alle gelesenen Seiten zu genau einem Vertrag gehören (sonst wäre unklar, welche Nummer gemeint ist)
+  const vertraegeGelesen = erg ? Array.from(new Set(erg.gelesen.map((g) => akte?.dokumente.find((d) => d.id === g.dokumentId)?.vertragId).filter(Boolean))) : [];
+  const einsetzen = (t: string) => (namen ? zurueckuebersetzen(vertraegeGelesen.length === 1 ? nummernEinsetzen(t, sl.nummern[String(vertraegeGelesen[0])]) : t, sl.liste) : t);
+  const anzeige = erg ? einsetzen(erg.antwort) : "";
   const gelesen = erg ? Array.from(new Map(erg.gelesen.map((g) => [g.dokumentId, { ...g, seiten: erg.gelesen.filter((x) => x.dokumentId === g.dokumentId).map((x) => x.nr) }])).values()) : [];
   return (
     <main className="seite">
