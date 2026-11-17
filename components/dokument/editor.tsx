@@ -1,16 +1,47 @@
 "use client";
-/* Seite prüfen: Balken ansehen, antippen (auswählen/entfernen), im Zeichenmodus neue Balken ziehen. */
+/* Seite prüfen: Balken ansehen, antippen (auswählen/entfernen), im Zeichenmodus neue Balken ziehen.
+   Jede Änderung lässt sich zurücknehmen (Verlauf je Seite, im Elternteil gehalten, damit er Seitenwechsel übersteht). */
 import { useEffect, useRef, useState, type PointerEvent } from "react";
 import { balkenZeichnen, type Seite } from "@/lib/geraet/seiten";
 import type { Balken } from "@/lib/schwaerzen/seitentext";
+import { geschuetzt, merken, rueckgaengig, wiederholen, type Verlauf } from "@/lib/schwaerzen/verlauf";
 
-export function SeitenEditor({ seite, labels, setBalken }: { seite: Seite; labels: string[]; setBalken: (l: Balken[]) => void }) {
+export function SeitenEditor({ seite, labels, verlauf, aendern, automatisch }: {
+  seite: Seite; labels: string[]; verlauf: Verlauf;
+  aendern: (balken: Balken[], verlauf: Verlauf) => void;
+  automatisch: () => Balken[];
+}) {
   const ref = useRef<HTMLCanvasElement>(null);
   const [zeichnen, setZeichnen] = useState(false);
   const [label, setLabel] = useState(labels[0] ?? "[geschwärzt]");
   const [auswahl, setAuswahl] = useState<Balken | null>(null);
   const [entwurf, setEntwurf] = useState<Balken | null>(null);
   const start = useRef<{ x: number; y: number } | null>(null);
+  const [meldung, setMeldung] = useState("");
+  const uhr = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (uhr.current) clearTimeout(uhr.current); }, []);
+
+  /** Neuer Stand mit Verlaufseintrag. */
+  const setBalken = (l: Balken[]) => aendern(l, merken(verlauf, seite.balken));
+  function kurz(t: string) {
+    setMeldung(t);
+    if (uhr.current) clearTimeout(uhr.current);
+    uhr.current = setTimeout(() => setMeldung(""), 6000);
+  }
+  function zurueck() {
+    const r = rueckgaengig(verlauf, seite.balken);
+    if (!r) return;
+    aendern(r.balken, r.verlauf); setAuswahl(null); setMeldung("");
+  }
+  function vor() {
+    const r = wiederholen(verlauf, seite.balken);
+    if (!r) return;
+    aendern(r.balken, r.verlauf); setAuswahl(null); setMeldung("");
+  }
+  function zuruecksetzen() {
+    if (!window.confirm("Alle Änderungen auf dieser Seite verwerfen und die automatischen Balken wiederherstellen? (Lässt sich mit „Rückgängig“ zurücknehmen.)")) return;
+    setBalken(automatisch()); setAuswahl(null); setMeldung("");
+  }
 
   useEffect(() => {
     const c = ref.current;
@@ -54,8 +85,10 @@ export function SeitenEditor({ seite, labels, setBalken }: { seite: Seite; label
   }
   function entfernen() {
     if (!auswahl) return;
+    if (geschuetzt(auswahl) && !window.confirm("Hier steht ein Eintrag aus der Schwärzliste. Wirklich ungeschwärzt lassen?\n\nIm Bild bleibt die Stelle dann sichtbar. Im gespeicherten Text und für die KI wird sie trotzdem ersetzt.")) return;
     setBalken(seite.balken.filter((b) => b !== auswahl));
     setAuswahl(null);
+    kurz("Balken entfernt");
   }
   function umbenennen(l: string) {
     if (!auswahl) return;
@@ -74,13 +107,26 @@ export function SeitenEditor({ seite, labels, setBalken }: { seite: Seite; label
           <select value={label} onChange={(e) => setLabel(e.target.value)}>{labels.map((l) => <option key={l}>{l}</option>)}</select>
         </label>
       </div>
+      <div className="knoepfe">
+        <button type="button" className="zweitrangig" disabled={!verlauf.zurueck.length} onClick={zurueck}>↶ Rückgängig</button>
+        <button type="button" className="zweitrangig" disabled={!verlauf.vor.length} onClick={vor}>↷ Wiederholen</button>
+        <button type="button" className="zweitrangig" onClick={zuruecksetzen}>Seite zurücksetzen</button>
+      </div>
       <div className="leinwand">
         <canvas ref={ref} style={{ touchAction: zeichnen ? "none" : "auto" }} onPointerDown={runter} onPointerMove={bewegen} onPointerUp={hoch} aria-label="Seite mit Balken" />
       </div>
       {auswahl && (
         <div className="knoepfe">
-          <select aria-label="Platzhalter des Balkens" value={auswahl.label ?? ""} onChange={(e) => umbenennen(e.target.value)}>{labels.map((l) => <option key={l}>{l}</option>)}</select>
-          <button type="button" className="gefahr" onClick={entfernen}>Balken entfernen</button>
+          <button type="button" className="gefahr" onClick={entfernen}>Entfernen</button>
+          <label className="inline">Platzhalter ändern
+            <select value={auswahl.label ?? ""} onChange={(e) => umbenennen(e.target.value)}>{labels.map((l) => <option key={l}>{l}</option>)}</select>
+          </label>
+        </div>
+      )}
+      {meldung && (
+        <div className="knoepfe" role="status">
+          <span>{meldung}</span>
+          <button type="button" className="zweitrangig" onClick={zurueck}>Rückgängig</button>
         </div>
       )}
       <p className="leise">{zeichnen ? "Mit dem Finger ein Rechteck über die Stelle ziehen." : "Balken antippen, um ihn zu ändern oder zu entfernen."}</p>

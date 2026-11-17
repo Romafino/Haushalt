@@ -10,6 +10,7 @@ import { useAkte } from "@/lib/akte/useAkte";
 import { dateienLaden, erkennen, type Seite } from "@/lib/geraet/seiten";
 import { dokumentSpeichern } from "@/lib/geraet/speichern";
 import { autoBalken, seitenText } from "@/lib/schwaerzen/seitentext";
+import { leererVerlauf, type Verlauf } from "@/lib/schwaerzen/verlauf";
 import { nummernFinden } from "@/lib/schwaerzen/schutz";
 import { zeileAus, zeilen } from "@/lib/schwaerzen/such";
 import { freitextPruefen } from "@/lib/akte/freitext";
@@ -27,6 +28,7 @@ export default function DokumentNeu() {
   const [seiten, setSeiten] = useState<Seite[] | null>(null);
   const [quelle, setQuelle] = useState<"pdf" | "foto">("foto");
   const [aktiv, setAktiv] = useState(0);
+  const [verlaeufe, setVerlaeufe] = useState<Record<number, Verlauf>>({});
   const [status, setStatus] = useState("");
   const [fehler, setFehler] = useState("");
   const [meta, setMeta] = useState<Record<string, string>>({ typ: "Brief", titel: "", datum: "", gueltigVon: "", gueltigBis: "", vertragId: "", dingId: "", firmaId: "", ablageort: "" });
@@ -64,7 +66,7 @@ export default function DokumentNeu() {
 
   async function laden(files: FileList | File[] | null) {
     if (!files?.length) return;
-    setFehler(""); setSeiten(null); setAktiv(0); setKi(null); setAuswahl(null); setDubletten(null); setDublettenOk(false);
+    setFehler(""); setSeiten(null); setAktiv(0); setVerlaeufe({}); setKi(null); setAuswahl(null); setDubletten(null); setDublettenOk(false);
     try {
       const r = await dateienLaden(Array.from(files), setStatus);
       try { await erkennen(r.seiten, setStatus); }
@@ -175,7 +177,9 @@ export default function DokumentNeu() {
                 <button type="button" className="zweitrangig" disabled={aktiv === seiten.length - 1} onClick={() => setAktiv(aktiv + 1)}>Weiter →</button>
               </div>
             )}
-            <SeitenEditor key={aktiv} seite={s} labels={labels} setBalken={(l) => setSeiten(seiten.map((x, i) => (i === aktiv ? { ...x, balken: l } : x)))} />
+            <SeitenEditor key={aktiv} seite={s} labels={labels} verlauf={verlaeufe[aktiv] ?? leererVerlauf()}
+              aendern={(l, v) => { setSeiten(seiten.map((x, i) => (i === aktiv ? { ...x, balken: l } : x))); setVerlaeufe({ ...verlaeufe, [aktiv]: v }); }}
+              automatisch={() => (s.stuecke ? autoBalken(s.stuecke, sl.liste) : [])} />
             <details>
               <summary>Text dieser Seite (so wird er gespeichert)</summary>
               <pre className="seitentext">{seitenText(s.stuecke, s.balken, sl.liste) || "(kein Text erkannt)"}</pre>
