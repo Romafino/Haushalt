@@ -3,6 +3,7 @@
    die von Hand gezogen wurden. Danach zur Sicherheit noch einmal Liste + Muster (anonymisieren). Reines Modul. */
 import { anonymisieren, balkenFuer, treffer, zeileAus, zeilen } from './index';
 import { ANREDE_RE, GEB_RE, NR_BLEIBT, NR_NACKT, NR_RE } from './text';
+import { istMobil, kundenfelder, TECHNIK_DAVOR, telefonTreffer } from './genauer';
 import type { ListenEintrag } from './liste';
 
 export type Stueck = { str: string; x0: number; x1: number; y0: number; y1: number };
@@ -58,6 +59,8 @@ export function nummernTreffer(text: string): { start: number; ende: number }[] 
     const wert = text.slice(t.start, t.ende).trim();
     const davor = text.slice(Math.max(0, t.start - 24), t.start).split('\n').pop() ?? '';
     const danach = text.slice(t.ende, t.ende + 8);
+    if (istMobil(wert, davor)) return true; // Handynummern immer
+    if (TECHNIK_DAVOR.test(davor)) return false; // Zähler, Mess-/Marktlokation
     return !DATUM.test(wert) && !BETRAG.test(wert) && !MONAT_JAHR.test(wert) && !EINHEIT_DANACH.test(danach) && !TELEFON_DAVOR.test(davor);
   });
 }
@@ -117,6 +120,14 @@ export function autoBalken(stuecke: Stueck[], liste: ListenEintrag[]): Balken[] 
     const neu: Balken = { x: k.x - rx, y: k.y - r, w: k.w + 2 * rx, h: k.h + 2 * r, label, auto: true, quelle: 'anschrift' };
     if (!out.some((b) => ueberlappung(neu, b) > 0.3)) out.push(neu);
   }
+  // Felder eines Kundenblocks (Name:, Adresse: …) und Telefonnummern aus der Liste in jeder Schreibweise
+  const texte = alleZeilen.map((z) => zeileAus(z).text);
+  const extra = [...kundenfelder(texte), ...texte.flatMap((t, index) => telefonTreffer(t, liste).map((x) => ({ index, ...x })))];
+  for (const f of extra) {
+    const zl = zeileAus(alleZeilen[f.index]), k = zl.kasten(f.start, f.ende), r = Math.max(2, k.h * 0.18), rx = Math.max(3, k.h * 0.45);
+    const neu: Balken = { x: k.x - rx, y: k.y - r, w: k.w + 2 * rx, h: k.h + 2 * r, label: f.label, auto: true, quelle: 'kunde' };
+    if (!out.some((b) => ueberlappung(neu, b) > 0.3)) out.push(neu);
+  }
   for (const z of alleZeilen) {
     const zl = zeileAus(z);
     for (const t of musterBereiche(zl.text)) {
@@ -144,6 +155,7 @@ export function seitenText(stuecke: Stueck[] | null, balken: Balken[], liste: Li
     out.push(teile.join(' ').replace(/\s+/g, ' ').trim());
   }
   let text: string = anonymisieren(out.join('\n'), liste).text;
+  for (const t of telefonTreffer(text, liste).reverse()) text = text.slice(0, t.start) + t.label + text.slice(t.ende);
   for (const t of nummernTreffer(text).reverse()) text = text.slice(0, t.start) + '[Nummer]' + text.slice(t.ende);
   for (const t of alteDaten(text).reverse()) text = text.slice(0, t.start) + '[Datum]' + text.slice(t.ende);
   return text;
@@ -151,6 +163,6 @@ export function seitenText(stuecke: Stueck[] | null, balken: Balken[], liste: Li
 
 /** Zweite Prüfung: Welche Einträge der Schwärzliste stehen (noch) im Text? Leere Liste = sauber. */
 export function listenTreffer(text: string, liste: ListenEintrag[]): string[] {
-  const t = treffer(text, liste.map((e) => ({ text: e.text, label: e.ersatz })), {});
+  const t = [...treffer(text, liste.map((e) => ({ text: e.text, label: e.ersatz })), {}), ...telefonTreffer(text, liste)];
   return Array.from(new Set(t.map((x: { start: number; ende: number }) => text.slice(x.start, x.ende))));
 }

@@ -1,6 +1,8 @@
 /* Übernommen aus altbestand/schwaerzer/such.js (Schwärzer: Fundstellen in einer Textzeile, Balken, Liste lesen).
    Verhalten unverändert; Typen zunächst grob (any). */
 /* eslint-disable @typescript-eslint/no-explicit-any */
+/* Bewusst geändert 17.11.2026: IBAN nur, wenn plausibel (Länge je Land) und nicht hinter Zähler/Mess-/Marktlokation (genauer.ts). */
+import { ibanPlausibel, TECHNIK_DAVOR } from './genauer';
 
 const reEsc = (t: any) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const GRENZE_V = '(?<![A-Za-zÄÖÜäöüß0-9])', GRENZE_N = '(?![A-Za-zÄÖÜäöüß0-9])';
@@ -20,7 +22,7 @@ function treffer(zeile: any, eintraege: any, opt: any) {
     const re = muster(e.text); let m;
     while ((m = re.exec(zeile))) { if (!m[0].length) { re.lastIndex++; continue; } out.push({ start: m.index, ende: m.index + m[0].length, label: e.label || '', quelle: 'liste' }); }
   }
-  if (opt.iban) { IBAN.lastIndex = 0; let m; while ((m = IBAN.exec(zeile))) out.push({ start: m.index, ende: m.index + m[0].length, label: opt.ibanLabel || '[IBAN]', quelle: 'iban' }); }
+  if (opt.iban) { IBAN.lastIndex = 0; let m; while ((m = IBAN.exec(zeile))) { if (!ibanPlausibel(m[0]) || TECHNIK_DAVOR.test(zeile.slice(Math.max(0, m.index - 30), m.index))) continue; out.push({ start: m.index, ende: m.index + m[0].length, label: opt.ibanLabel || '[IBAN]', quelle: 'iban' }); } }
   if (opt.ziffern) { ZIFFERN.lastIndex = 0; let m; while ((m = ZIFFERN.exec(zeile))) out.push({ start: m.index, ende: m.index + m[0].length, label: opt.zifferLabel || '[Nummer]', quelle: 'ziffern' }); }
   out.sort((a, b) => (b.ende - b.start) - (a.ende - a.start) || a.start - b.start);
   const frei: any[] = [];

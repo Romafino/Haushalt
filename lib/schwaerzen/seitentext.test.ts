@@ -129,4 +129,25 @@ describe('Anschriftenfeld ohne Schwärzliste', () => {
     expect(a('Grenze: 16.11.2011 bleibt, 15.11.2011 nicht')).toEqual(['15.11.2011']);
     expect(a('Baujahr 1998, Tarif 10/2026, 31.02.1960')).toEqual([]);
   });
+
+  it('Stromvertrag (nachgebaut): Kundenfelder und Handy geschwärzt, Zähler/Mess-/Marktlokation bleiben', () => {
+    x = 0;
+    const liste = [{ text: 'Max Mustermann', ersatz: '[Vater]' }];
+    const st = [
+      ...zeile(0, 'Name:', 'Max', 'Mustermann'),
+      ...zeile(20, 'Adresse:', 'Beispielstr.', '14,', '12345', 'Musterstadt'),
+      ...zeile(40, 'Telefon:', '+49', '/', '15123456789'),
+      ...zeile(60, 'Geburtsdatum:', '22.02.1970'),
+      ...zeile(80, 'IBAN', 'DE89', '3704', '0044', '0532', '0130', '00'),
+      ...zeile(140, 'Zählernummer:', '1ESY1160123456'),
+      ...zeile(160, 'Messlokation:', 'DE0001234567890000000000000012345'),
+      ...zeile(180, 'Marktlokation', '50412345678'),
+      ...zeile(200, 'Verbrauchsprognose', '2.194', 'kWh'),
+    ];
+    const text = seitenText(st, autoBalken(st, liste), liste);
+    expect(text).toBe([
+      'Name: [Vater]', 'Adresse: [Adresse]', 'Telefon: [Telefon]', 'Geburtsdatum: [Geburtsdatum]', 'IBAN [IBAN]',
+      'Zählernummer: 1ESY1160123456', 'Messlokation: DE0001234567890000000000000012345', 'Marktlokation 50412345678', 'Verbrauchsprognose 2.194 kWh',
+    ].join('\n'));
+  });
 });

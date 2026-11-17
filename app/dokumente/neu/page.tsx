@@ -55,7 +55,7 @@ export default function DokumentNeu() {
 
   // Wie viele Seiten liest die KI (Textgrenze)? Vorab anzeigen, damit es keine Überraschung gibt.
   const kiSeiten = useMemo(() => (seiten ? seitenInGrenze(seiten.map((x, i) => ({ nr: i + 1, text: seitenText(x.stuecke, x.balken, sl.liste) }))) : 0), [seiten, sl.liste]);
-  const labels = useMemo(() => Array.from(new Set([...sl.liste.map((e) => e.ersatz), "[Name]", "[Adresse]", "[Nummer]", "[Datum]", "[geschwärzt]"])), [sl.liste]);
+  const labels = useMemo(() => Array.from(new Set([...sl.liste.map((e) => e.ersatz), "[Name]", "[Adresse]", "[Telefon]", "[E-Mail]", "[Nummer]", "[Datum]", "[geschwärzt]"])), [sl.liste]);
 
   async function laden(files: FileList | File[] | null) {
     if (!files?.length) return;

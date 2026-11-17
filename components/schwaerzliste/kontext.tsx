@@ -5,6 +5,7 @@ import { createContext, useCallback, useContext, useMemo, useRef, useState, type
 import { supabaseBrowser } from "@/lib/supabase/browser";
 import { boxAnlegen, boxOeffnen, boxSchreiben, mitSchluessel, type Box, type ListenEintrag } from "@/lib/schwaerzen/liste";
 import { tresorAlsListe, tresorOeffnen, tresorVerschluesseln, type Tresor, type TresorBox } from "@/lib/schwaerzen/tresor";
+import { listeErweitern } from "@/lib/schwaerzen/genauer";
 
 type Zustand = "unbekannt" | "laden" | "keine" | "gesperrt" | "offen" | "fehler";
 type Kontext = {
@@ -149,7 +150,7 @@ export function SchwaerzlisteAnbieter({ children }: { children: ReactNode }) {
     return null;
   }, []);
 
-  const pruefliste = useMemo(() => [...liste, ...tresorAlsListe(nummern)], [liste, nummern]);
+  const pruefliste = useMemo(() => listeErweitern([...liste, ...tresorAlsListe(nummern)]), [liste, nummern]);
   const wert = useMemo(() => ({ zustand, liste: pruefliste, eigeneListe: liste, nummern, nummernSpeichern, pruefen, entsperren, anlegen, speichern, sperren }),
     [zustand, pruefliste, liste, nummern, nummernSpeichern, pruefen, entsperren, anlegen, speichern, sperren]);
   return <K.Provider value={wert}>{children}</K.Provider>;
