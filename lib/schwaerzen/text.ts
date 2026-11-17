@@ -1,6 +1,7 @@
 /* Übernommen aus altbestand/haushalts-app/logic.js: Schwärzen per Liste und Muster, Anonymisierung vor dem Senden an eine KI, Schwärzliste aus Datei lesen. Verhalten unverändert. */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { ibanPlausibel, TECHNIK_DAVOR } from './genauer';
 const IBAN_RE = /\b[A-Z]{2}\d{2}(?:[  ]?[0-9A-Z]{4}){3,7}(?:[  ]?[0-9A-Z]{1,3})?\b/g;
 const GEB_RE = /(geb(?:oren|\.)?(?:\s*am)?:?\s*)\d{1,2}\.\s?\d{1,2}\.\s?\d{2,4}/gi;
 /* Ersetzt alle gemeldeten Zeichenfolgen (längste zuerst) und fängt IBAN/Geburtsdatum zusätzlich per Muster. */
@@ -15,7 +16,8 @@ function schwaerzen(text: any, liste: any) {
 /* ---------- Anonymisierung VOR dem Senden an Claude (nur Text-PDFs) ---------- */
 /* Jede Bezeichnung, die auf Nummer, Nr., Zeichen oder ID endet (auch zusammengesetzt), gefolgt von einem Wert mit Ziffer. */
 const NR_RE = /((?:[A-Za-zÄÖÜäöüß][A-Za-zÄÖÜäöüß.\-]*)?(?:[Nn]ummer|NUMMER|[Nn]r\.?|NR\.?|[Zz]eichen|ZEICHEN|ID|Id)(?![A-Za-zÄÖÜäöüß])[ \t]*[:.]?[ \t]*)((?=[A-Z0-9\-\/\.]* ?[A-Z0-9\-\/\.]*\d)[A-Z0-9][A-Z0-9\-\/\.]*(?![a-zäöüß])(?: [A-Z0-9][A-Z0-9\-\/\.]*(?![a-zäöüß])){0,4})/g;
-const NR_BLEIBT = /^(?:tel|fax|ruf|service|hotline|haus|handy|mobil|seite|blatt|info|kunden-?service)/i;
+/* Bewusst ergänzt 17.11.2026: Zähler-/Mess-/Marktlokation bleiben stehen; handy/mobil wieder geschwärzt (siehe istMobil in genauer.ts) */
+const NR_BLEIBT = /^(?:tel|fax|ruf|service|hotline|haus|seite|blatt|info|kunden-?service|z[äa]e?hler|z[äa]hlpunkt|mess|markt|melo|malo)/i;
 const NR_NACKT = /^(?:nummer|nr\.?)[ \t:.]*$/i;
 /* Personennamen: nach Herr/Frau und in den Zeilen nach "Es betreut Sie", "Ihr Ansprechpartner" usw. */
 const ANREDE_RE = /\b(Herrn?|Frau)[ \t]+((?:(?:Dr\.|Prof\.)[ \t]+)*[A-ZÄÖÜ][a-zäöüß]+(?:-[A-ZÄÖÜ][a-zäöüß]+)?(?:[ \t]+[A-ZÄÖÜ][a-zäöüß]+(?:-[A-ZÄÖÜ][a-zäöüß]+)?)?)/g;
@@ -50,7 +52,7 @@ function anonymisieren(text: any, liste: any) {
     try { re = new RegExp('(?<![A-Za-zÄÖÜäöüß0-9])' + kern + '(?![A-Za-zÄÖÜäöüß0-9])', fl); } catch { re = new RegExp(kern, fl); }
     t = t.replace(re, () => { treffer.liste++; return /^\[[^\]]{1,20}\]$/.test(x.ersatz || '') ? x.ersatz : '[entfernt]'; });
   }
-  t = t.replace(IBAN_RE, () => { treffer.iban++; return '[IBAN]'; });
+  t = t.replace(IBAN_RE, (m: string, pos: number, ganz: string) => { if (!ibanPlausibel(m) || TECHNIK_DAVOR.test(ganz.slice(Math.max(0, pos - 30), pos))) return m; treffer.iban++; return '[IBAN]'; });
   t = t.replace(GEB_RE, (m, a) => { treffer.geburtsdatum++; return a + '[Geburtsdatum]'; });
   t = t.replace(NR_RE, (m, a, w) => {
     const ende = (/[.\-\/]+$/.exec(w) || [''])[0], wert = w.slice(0, w.length - ende.length);
