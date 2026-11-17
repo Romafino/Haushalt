@@ -35,6 +35,7 @@ export default function DokumentNeu() {
   const [kiLaeuft, setKiLaeuft] = useState(false);
   const [meta, setMeta] = useState<Record<string, string>>({ typ: "Brief", titel: "", datum: "", gueltigVon: "", gueltigBis: "", vertragId: "", dingId: "", firmaId: "", ablageort: "" });
   const eingabe = useRef<HTMLInputElement>(null);
+  const mehr = useRef<HTMLInputElement>(null);
   // Dokument-ID erst bei Bedarf erzeugen (nicht beim Vorab-Rendern); bleibt für dieses Dokument gleich
   const dokId = useRef<string | null>(null);
   const dokumentId = () => (dokId.current ??= crypto.randomUUID());
@@ -79,6 +80,25 @@ export default function DokumentNeu() {
       setFehler("Die Datei konnte nicht geöffnet werden: " + (e instanceof Error ? e.message : String(e)));
     }
     setStatus("");
+  }
+
+  /** Weitere Teile (z. B. Teil 2 und 3 eines PDFs) hinten anhängen, vor dem Auslesen und Speichern. */
+  async function hinzufuegen(files: FileList | null) {
+    if (!files?.length || !seiten) return;
+    setFehler(""); setKiFehler(""); setDubletten(null); setDublettenOk(false);
+    try {
+      const r = await dateienLaden(Array.from(files), setStatus, seiten.length);
+      try { await erkennen(r.seiten, setStatus); }
+      catch { setFehler("Die Texterkennung lief hier nicht. Bitte die neuen Seiten von Hand schwärzen; ihr Text bleibt dann leer."); }
+      if (r.quelle === "pdf") setQuelle("pdf");
+      const vorher = seiten.length;
+      setSeiten([...seiten, ...r.seiten.map((x) => ({ ...x, balken: x.stuecke ? autoBalken(x.stuecke, sl.liste) : [] }))]);
+      setAktiv(vorher); // erste neue Seite zeigen
+    } catch (e) {
+      setFehler("Die Datei konnte nicht hinzugefügt werden: " + (e instanceof Error ? e.message : String(e)));
+    }
+    setStatus("");
+    if (mehr.current) mehr.current.value = "";
   }
 
   /** Erfundene Beispiel-Police zum Ausprobieren (keine echten Daten). */
@@ -159,8 +179,15 @@ export default function DokumentNeu() {
       <Kopf zurueck="/dokumente" text="Dokumente" />
       <h1>Dokument aufnehmen</h1>
       <section className="karte">
-        <p className="leise">Fotos oder ein PDF. Alles wird auf diesem Gerät gelesen und geschwärzt; gespeichert wird nur die geschwärzte Fassung.</p>
+        <p className="leise">Fotos oder PDFs, auch mehrere Teile auf einmal (Reihenfolge nach Dateiname). Alles wird auf diesem Gerät gelesen und geschwärzt; gespeichert wird nur die geschwärzte Fassung.</p>
         <input ref={eingabe} type="file" accept="application/pdf,image/*" multiple onChange={(e) => laden(e.target.files)} />
+        {seiten && (
+          <>
+            <input ref={mehr} type="file" accept="application/pdf,image/*" multiple hidden onChange={(e) => hinzufuegen(e.target.files)} />
+            <button type="button" className="zweitrangig" onClick={() => mehr.current?.click()} disabled={!!status || !!ki}>Weitere Seiten hinzufügen (z. B. Teil 2)</button>
+            {ki && <p className="leise">Weitere Seiten nur vor „Mit KI auslesen“ – sonst fehlen sie in der Auswertung.</p>}
+          </>
+        )}
         <button type="button" className="zweitrangig" onClick={beispiel} disabled={!!status}>Beispiel-Dokument laden (erfundene Daten)</button>
         {status && <p className="leise" role="status">{status}</p>}
         {fehler && <p className="fehler" role="alert">{fehler}</p>}
