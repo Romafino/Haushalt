@@ -148,8 +148,9 @@ export default function DokumentNeu() {
   async function speichern(e?: FormEvent, trotzdem = false) {
     e?.preventDefault();
     if (!seiten || !haushaltId) return;
-    const t = freitextPruefen(meta.titel, "streng") ?? freitextPruefen(meta.ablageort, "streng");
-    if (t) { setSpeichernFehler("Titel: " + t); return setFehler("Titel: " + t); }
+    const ft = freitextPruefen(meta.titel, "streng"), fa = freitextPruefen(meta.ablageort, "streng");
+    const t = ft ? "Titel: " + ft : fa ? "Ablageort: " + fa : null;
+    if (t) { setSpeichernFehler(t); return setFehler(t); }
     setFehler(""); setSpeichernFehler("");
     if (trotzdem) { setDublettenOk(true); setDubletten(null); }
     if (!(await dublettenGeprueft(trotzdem))) return;

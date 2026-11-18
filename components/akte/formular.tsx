@@ -2,6 +2,7 @@
 import { useState, type FormEvent } from "react";
 import type { Akte, Eintrag } from "@/lib/akte/abbilden";
 import { freitextPruefen } from "@/lib/akte/freitext";
+import { useSchwaerzliste } from "@/components/schwaerzliste/kontext";
 import { auswahl, type Bereich, type Feld } from "./definitionen";
 import { EigenEingabe, WahlMitEigenem } from "./eigener-wert";
 import * as R from "@/lib/regeln";
@@ -42,6 +43,7 @@ export function Formular({ bereich, start, akte, mitBezuegen, onSpeichern, eigen
   const [laeuft, setLaeuft] = useState(false);
 
   const setze = (n: string, v: string | boolean) => setWerte((w) => ({ ...w, [n]: v }));
+  const sl = useSchwaerzliste();
   const listen = R.listen(akte.einst.eigene);
   const optionenFuer = (f: Feld) => {
     const l: Eintrag[] = f.verweis ? (akte[f.verweis] as Eintrag[]) : [];
@@ -55,7 +57,7 @@ export function Formular({ bereich, start, akte, mitBezuegen, onSpeichern, eigen
     for (const f of bereich.felder) {
       const x = werte[f.name];
       if (f.pflicht && (x === "" || x == null)) neu[f.name] = "Bitte ausfüllen.";
-      const p = freitextPruefen(x, f.pruefung ?? "keine");
+      const p = freitextPruefen(x, f.pruefung ?? "keine", sl.zustand === "offen" ? sl.liste : null);
       if (p) neu[f.name] = p;
       if ((f.art === "zahl" || f.art === "euro") && x !== "" && !Number.isFinite(Number(String(x).replace(",", ".")))) neu[f.name] = "Bitte eine Zahl eingeben.";
     }
