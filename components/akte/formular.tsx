@@ -3,6 +3,7 @@ import { useState, type FormEvent } from "react";
 import type { Akte, Eintrag } from "@/lib/akte/abbilden";
 import { freitextPruefen } from "@/lib/akte/freitext";
 import { auswahl, type Bereich, type Feld } from "./definitionen";
+import { EigenEingabe, WahlMitEigenem } from "./eigener-wert";
 import * as R from "@/lib/regeln";
 
 type Werte = Record<string, string | boolean>;
@@ -23,8 +24,9 @@ function umwandeln(felder: Feld[], w: Werte): Record<string, unknown> {
   return out;
 }
 
-export function Formular({ bereich, start, akte, mitBezuegen, onSpeichern, eigeneId }: {
+export function Formular({ bereich, start, akte, mitBezuegen, onSpeichern, eigeneId, haushaltId }: {
   bereich: Bereich;
+  haushaltId?: string;
   start: Record<string, unknown>;
   akte: Akte;
   mitBezuegen?: Bezuege;
@@ -75,7 +77,7 @@ export function Formular({ bereich, start, akte, mitBezuegen, onSpeichern, eigen
         <fieldset key={g || "allgemein"}>
           {g && <legend>{g}</legend>}
           {bereich.felder.filter((f) => (f.gruppe ?? "") === g).map((f) => (
-            <FeldEingabe key={f.name} f={f} wert={werte[f.name]} fehler={fehler[f.name]} setze={setze} optionen={f.verweis ? optionenFuer(f) : f.liste ? auswahl(listen[f.liste], werte[f.name]) : f.optionen ?? []} />
+            <FeldEingabe key={f.name} haushaltId={haushaltId} f={f} wert={werte[f.name]} fehler={fehler[f.name]} setze={setze} optionen={f.verweis ? optionenFuer(f) : f.liste ? auswahl(listen[f.liste], werte[f.name]) : f.optionen ?? []} />
           ))}
         </fieldset>
       ))}
@@ -85,6 +87,7 @@ export function Formular({ bereich, start, akte, mitBezuegen, onSpeichern, eigen
           <legend>Bezüge</legend>
           <Mehrfach titel="Betrifft diese Dinge" alle={akte.dinge.map((d) => ({ wert: d.id, text: String(d.name) }))} gewaehlt={bez.dinge} setze={(l) => setBez({ ...bez, dinge: l })} />
           <Mehrfach titel="Für wen" alle={[...listen.rolle, ...(bez.rollen ?? []).filter((r) => !listen.rolle.includes(r))].map((r) => ({ wert: r, text: r }))} gewaehlt={bez.rollen} setze={(l) => setBez({ ...bez, rollen: l })} />
+          <EigenEingabe liste="rolle" haushaltId={haushaltId} knopf="＋ Eigene Rolle …" onWert={(r) => setBez({ ...bez, rollen: bez.rollen.includes(r) ? bez.rollen : [...bez.rollen, r] })} />
           <p className="leise">Das zuerst gewählte ist jeweils der Hauptbezug.</p>
         </fieldset>
       )}
@@ -95,7 +98,7 @@ export function Formular({ bereich, start, akte, mitBezuegen, onSpeichern, eigen
   );
 }
 
-function FeldEingabe({ f, wert, fehler, setze, optionen }: { f: Feld; wert: string | boolean; fehler?: string; setze: (n: string, v: string | boolean) => void; optionen: { wert: string; text: string }[] }) {
+function FeldEingabe({ f, wert, fehler, setze, optionen, haushaltId }: { f: Feld; wert: string | boolean; fehler?: string; setze: (n: string, v: string | boolean) => void; optionen: { wert: string; text: string }[]; haushaltId?: string }) {
   const id = "feld-" + f.name;
   const gemeinsam = { id, name: f.name, "aria-invalid": !!fehler, "aria-describedby": fehler || f.hilfe ? id + "-hinweis" : undefined };
   let eingabe;
@@ -106,6 +109,9 @@ function FeldEingabe({ f, wert, fehler, setze, optionen }: { f: Feld; wert: stri
         <span>{f.text}</span>
       </label>
     );
+  } else if (f.art === "wahl" && f.liste) {
+    eingabe = <WahlMitEigenem id={id} invalid={!!fehler} beschrieben={gemeinsam["aria-describedby"]} wert={String(wert)} optionen={optionen}
+      leer={f.pflicht ? undefined : "–"} setze={(w) => setze(f.name, w)} liste={f.liste} haushaltId={haushaltId} />;
   } else if (f.art === "wahl" || f.art === "verweis") {
     eingabe = (
       <select {...gemeinsam} value={String(wert)} onChange={(e) => setze(f.name, e.target.value)}>

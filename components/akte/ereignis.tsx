@@ -7,18 +7,23 @@ import type { Akte, Eintrag } from "@/lib/akte/abbilden";
 import { opsUebersetzen } from "@/lib/akte/ops";
 import { opsAnwenden } from "@/lib/akte/useAkte";
 import * as R from "@/lib/regeln";
-import { VERL, ZAHLWEISE } from "./definitionen";
+import { auswahl, VERL, ZAHLWEISE } from "./definitionen";
+import { WahlMitEigenem } from "./eigener-wert";
+import { freitextPruefen } from "@/lib/akte/freitext";
+import { listenTreffer } from "@/lib/schwaerzen/seitentext";
 
-type Typ = "erhoehung" | "nachtrag" | "kuendigung" | "bestaetigung" | "ersatz";
+type Typ = "erhoehung" | "nachtrag" | "kuendigung" | "bestaetigung" | "ersatz" | "eigen";
 const NAMEN: Record<Typ, string> = {
   erhoehung: "Beitrags-/Preiserhöhung", nachtrag: "Nachtrag / Tarifwechsel", kuendigung: "Kündigung versendet",
-  bestaetigung: "Kündigung bestätigt", ersatz: "Ersatzvertrag verknüpfen",
+  bestaetigung: "Kündigung bestätigt", ersatz: "Ersatzvertrag verknüpfen", eigen: "Anderes Ereignis (eigene Angabe) …",
 };
 const ZAHLWEISEN = R.ENUM.zahlweise;
 
 export function EreignisEintragen({ v, S, haushaltId, onGeaendert }: { v: Eintrag; S: Akte; haushaltId: string; onGeaendert: () => Promise<void> }) {
   const heute: string = R.heute();
-  const moeglich: Typ[] = v.status === "aktiv" ? ["erhoehung", "nachtrag", "kuendigung", "ersatz"] : v.status === "gekuendigt" ? ["bestaetigung", "ersatz"] : [];
+  const moeglich: Typ[] = [...(v.status === "aktiv" ? ["erhoehung", "nachtrag", "kuendigung", "ersatz"] as Typ[] : v.status === "gekuendigt" ? ["bestaetigung", "ersatz"] as Typ[] : []), "eigen"];
+  const sl = useSchwaerzliste();
+  const eigeneEreignisse: string[] = R.listen(S.einst.eigene).ereignis;
   const kj = R.kuendigungJetzt(v, heute);
   const [typ, setTyp] = useState<Typ | "">("");
   const [w, setW] = useState<Record<string, string>>({});
@@ -30,7 +35,7 @@ export function EreignisEintragen({ v, S, haushaltId, onGeaendert }: { v: Eintra
   const setze = (k: string, x: string) => { setW((a) => ({ ...a, [k]: x })); setVorschau(null); };
   const waehle = (t: Typ | "") => {
     setTyp(t); setVorschau(null); setMeldung("");
-    setW(t === "kuendigung" ? { am: heute, zum: kj?.zum ?? String(v.laufzeitende ?? "") } : t === "bestaetigung" ? { zum: String(v.gekuendigtZum ?? v.laufzeitende ?? "") } : t === "erhoehung" ? { zugang: heute, zahlweise: String(v.zahlweise ?? "") } : {});
+    setW(t === "eigen" ? { datum: heute } : t === "kuendigung" ? { am: heute, zum: kj?.zum ?? String(v.laufzeitende ?? "") } : t === "bestaetigung" ? { zum: String(v.gekuendigtZum ?? v.laufzeitende ?? "") } : t === "erhoehung" ? { zugang: heute, zahlweise: String(v.zahlweise ?? "") } : {});
   };
   const zahl = (x?: string) => (x ? Number(x.replace(",", ".")) : NaN);
 
@@ -52,6 +57,12 @@ export function EreignisEintragen({ v, S, haushaltId, onGeaendert }: { v: Eintra
     if (typ === "kuendigung") return w.zum ? { am: w.am || heute, zum: w.zum } : "Bitte „gekündigt zum“ angeben.";
     if (typ === "bestaetigung") return w.zum ? { zum: w.zum } : "Bitte das bestätigte Vertragsende angeben.";
     if (typ === "ersatz") return w.ersatzId ? { ersatzId: w.ersatzId } : "Bitte den Ersatzvertrag wählen.";
+    if (typ === "eigen") {
+      if (!w.was) return "Bitte angeben, was passiert ist.";
+      if (!w.datum) return "Bitte das Datum angeben.";
+      const f = freitextPruefen(w.notiz ?? "", "streng") ?? (listenTreffer(w.notiz ?? "", sl.liste).length ? "Bitte keine Namen oder Angaben aus der Schwärzliste in die Notiz." : null);
+      return f ?? { was: w.was, datum: w.datum, notiz: (w.notiz ?? "").trim() };
+    }
     return "Bitte ein Ereignis wählen.";
   }
 
@@ -59,6 +70,12 @@ export function EreignisEintragen({ v, S, haushaltId, onGeaendert }: { v: Eintra
     setMeldung("");
     const e = ereignisDaten();
     if (typeof e === "string") return setMeldung(e);
+    if (typ === "eigen") {
+      // Eigenes Ereignis: nur ein Eintrag in der Zeitleiste, keine automatischen Folgen
+      const text = String(e.was) + (e.notiz ? ": " + String(e.notiz) : "");
+      return setVorschau({ text: "Eintrag in der Zeitleiste am " + R.fmt(String(e.datum)) + ": " + text, hinweise: ["Keine automatischen Folgen (Beitrag, Fristen, Status bleiben unverändert)."],
+        ops: [{ op: "add", col: "ereignisse", data: { datum: e.datum, typ: "eigen", text: text.slice(0, 2000), vertragId: v.id } }] });
+    }
     const f = R.ereignisFolgen(typ, v, e, S, heute);
     setVorschau({ text: f.text, hinweise: f.hinweise, ops: f.ops });
   }
@@ -96,6 +113,13 @@ export function EreignisEintragen({ v, S, haushaltId, onGeaendert }: { v: Eintra
       {typ === "nachtrag" && <>{feld("gueltigAb", "Gültig ab")}<p className="leise">Nur ausfüllen, was sich ändert:</p>{feld("beitrag", "Beitrag (€)", "text", "decimal")}{wahl("zahlweise", "Zahlweise", ZAHLWEISEN, ZAHLWEISE)}{feld("laufzeitende", "Laufzeit bis")}{feld("fristWert", "Kündigungsfrist", "text", "numeric")}{wahl("fristEinheit", "Einheit", R.ENUM.einheit)}{wahl("verlaengerung", "Ohne Kündigung", R.ENUM.verl, VERL)}</>}
       {typ === "kuendigung" && <>{feld("am", "Versendet am")}{feld("zum", "Gekündigt zum")}<p className="leise">Es zählt der Zugang beim Anbieter. Versand mit Nachweis.</p></>}
       {typ === "bestaetigung" && feld("zum", "Bestätigtes Vertragsende")}
+      {typ === "eigen" && <>
+        <label>Was ist passiert?
+          <WahlMitEigenem wert={w.was ?? ""} leer="bitte wählen oder eigenen Wert anlegen" optionen={auswahl(eigeneEreignisse, w.was)} setze={(x) => setze("was", x)} liste="ereignis" haushaltId={haushaltId} />
+        </label>
+        {feld("datum", "Datum")}
+        <label>Notiz (optional)<textarea rows={2} maxLength={1500} value={w.notiz ?? ""} onChange={(e) => setze("notiz", e.target.value)} /></label>
+      </>}
       {typ === "ersatz" && (
         <label>Ersatzvertrag
           <select value={w.ersatzId ?? ""} onChange={(e) => setze("ersatzId", e.target.value)}>
