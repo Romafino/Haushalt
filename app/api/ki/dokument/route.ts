@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
     firmen: f.data ?? [], dinge: d.data ?? [],
     vertraege: (v.data ?? []).map((x) => ({ ...x, firmaId: x.firma_id })),
   };
-  const prompt = dokumentPrompt(texte, kurzakte(S), R.heute(), bilder.length);
+  const prompt = dokumentPrompt(texte, kurzakte(S), R.heute(), bilder.length, einst.eigene);
   const protokoll = async (t: { ein: number; aus: number; denken: number } | null, erfolg: boolean) => {
     const kosten = t ? kostenCent(t, preisAus(process.env)) : 0;
     await sb.from("ki_protokoll").insert({ haushalt_id: haushaltId, nutzer_id: nutzer, aufgabe: "dokument", anbieter: anbieter.name, modell: anbieter.modell,
@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
     const kosten = await protokoll(r, true);
     const roh = jsonAus(r.text);
     if (!roh) return fehler(502, "Die Antwort der KI war nicht lesbar. Bitte erneut versuchen oder von Hand ausfüllen.");
-    const vorschlag = vorschlagAus(roh, { vertraege: S.vertraege.map((x) => x.id), dinge: S.dinge.map((x) => x.id), firmen: S.firmen.map((x) => x.id) });
+    const vorschlag = vorschlagAus(roh, { vertraege: S.vertraege.map((x) => x.id), dinge: S.dinge.map((x) => x.id), firmen: S.firmen.map((x) => x.id) }, einst.eigene);
     return NextResponse.json({ vorschlag, kostenCent: kosten, limit: limitstand(verbraucht + kosten, einst) });
   } catch (err) {
     await protokoll(null, false);

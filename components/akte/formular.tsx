@@ -2,7 +2,8 @@
 import { useState, type FormEvent } from "react";
 import type { Akte, Eintrag } from "@/lib/akte/abbilden";
 import { freitextPruefen } from "@/lib/akte/freitext";
-import { ROLLEN, type Bereich, type Feld } from "./definitionen";
+import { auswahl, type Bereich, type Feld } from "./definitionen";
+import * as R from "@/lib/regeln";
 
 type Werte = Record<string, string | boolean>;
 export type Bezuege = { dinge: string[]; rollen: string[] };
@@ -39,6 +40,7 @@ export function Formular({ bereich, start, akte, mitBezuegen, onSpeichern, eigen
   const [laeuft, setLaeuft] = useState(false);
 
   const setze = (n: string, v: string | boolean) => setWerte((w) => ({ ...w, [n]: v }));
+  const listen = R.listen(akte.einst.eigene);
   const optionenFuer = (f: Feld) => {
     const l: Eintrag[] = f.verweis ? (akte[f.verweis] as Eintrag[]) : [];
     return l.filter((x) => x.id !== eigeneId).map((x) => ({ wert: x.id, text: String(x.name ?? x.kurzname ?? x.titel) }))
@@ -73,7 +75,7 @@ export function Formular({ bereich, start, akte, mitBezuegen, onSpeichern, eigen
         <fieldset key={g || "allgemein"}>
           {g && <legend>{g}</legend>}
           {bereich.felder.filter((f) => (f.gruppe ?? "") === g).map((f) => (
-            <FeldEingabe key={f.name} f={f} wert={werte[f.name]} fehler={fehler[f.name]} setze={setze} optionen={f.verweis ? optionenFuer(f) : f.optionen ?? []} />
+            <FeldEingabe key={f.name} f={f} wert={werte[f.name]} fehler={fehler[f.name]} setze={setze} optionen={f.verweis ? optionenFuer(f) : f.liste ? auswahl(listen[f.liste], werte[f.name]) : f.optionen ?? []} />
           ))}
         </fieldset>
       ))}
@@ -82,7 +84,7 @@ export function Formular({ bereich, start, akte, mitBezuegen, onSpeichern, eigen
         <fieldset>
           <legend>Bezüge</legend>
           <Mehrfach titel="Betrifft diese Dinge" alle={akte.dinge.map((d) => ({ wert: d.id, text: String(d.name) }))} gewaehlt={bez.dinge} setze={(l) => setBez({ ...bez, dinge: l })} />
-          <Mehrfach titel="Für wen" alle={ROLLEN.map((r) => ({ wert: r, text: r }))} gewaehlt={bez.rollen} setze={(l) => setBez({ ...bez, rollen: l })} />
+          <Mehrfach titel="Für wen" alle={[...listen.rolle, ...(bez.rollen ?? []).filter((r) => !listen.rolle.includes(r))].map((r) => ({ wert: r, text: r }))} gewaehlt={bez.rollen} setze={(l) => setBez({ ...bez, rollen: l })} />
           <p className="leise">Das zuerst gewählte ist jeweils der Hauptbezug.</p>
         </fieldset>
       )}

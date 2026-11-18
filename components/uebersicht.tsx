@@ -123,6 +123,7 @@ export function Uebersicht({ akte: S, haushaltId, onGeaendert }: { akte: Akte; h
         <Link href="/notfallblatt">Notfallblatt</Link>
         <Link href="/steuer">Steuer §35a</Link>
         <Link href="/regeln">Fachregeln</Link>
+        <Link href="/listen">Eigene Listen</Link>
       </nav>
 
       <section className="karte">

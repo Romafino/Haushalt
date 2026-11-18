@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Kopf } from "@/components/akte/kopf";
 import { SeitenEditor } from "@/components/dokument/editor";
+import { auswahl as listenAuswahl } from "@/components/akte/definitionen";
 import { useSchwaerzliste } from "@/components/schwaerzliste/kontext";
 import { useAkte } from "@/lib/akte/useAkte";
 import { dateienLaden, erkennen, type Seite } from "@/lib/geraet/seiten";
@@ -256,7 +257,7 @@ export default function DokumentNeu() {
 
           <form className="karte formular" onSubmit={speichern}>
             <h2>Angaben</h2>
-            <label>Art<select value={meta.typ} onChange={(e) => setMeta({ ...meta, typ: e.target.value })}>{R.ENUM.typ.map((t) => <option key={t}>{t}</option>)}</select></label>
+            <label>Art<select value={meta.typ} onChange={(e) => setMeta({ ...meta, typ: e.target.value })}>{listenAuswahl(R.listen(akte?.einst.eigene).typ, meta.typ).map((o) => <option key={o.wert}>{o.wert}</option>)}</select></label>
             <label>Titel<input value={meta.titel} maxLength={200} onChange={(e) => setMeta({ ...meta, titel: e.target.value })} placeholder="z. B. Hausrat Police 2026" /></label>
             <label>Ablageort des Originals<input value={meta.ablageort} maxLength={200} onChange={(e) => setMeta({ ...meta, ablageort: e.target.value })} placeholder="z. B. Ordner Versicherungen, Fach 3" /></label>
             <label>Datum des Dokuments<input type="date" value={meta.datum} onChange={(e) => setMeta({ ...meta, datum: e.target.value })} /></label>

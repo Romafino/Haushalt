@@ -165,8 +165,9 @@ const ENUM: Record<string, string[]> = {
 };
 const NUMMERN = /nummer|iban|konto|geburt|ausweis|anschrift|adresse|kundennr|vertragsnr|policennr/i;
 /* Macht aus der KI-Antwort einen sicheren Vorschlag: nur bekannte Felder und Werte, keine Nummernfelder, nur vorhandene IDs. */
-function bereinigen(res: any, ids: any) {
+function bereinigen(res: any, ids: any, eigene?: any) {
   res = res && typeof res === 'object' ? res : {};
+  const ENUM_ = eigene ? Object.assign({}, ENUM, listen(eigene)) : ENUM; // eigene Werte des Haushalts (Server) oder globale Listen
   const sw = Array.isArray(res.schwaerzen) ? res.schwaerzen : [];
   const fix = (v: any) => tief(v, (t: any) => schwaerzen(t, sw));
   const datum = (v: any) => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
@@ -176,9 +177,9 @@ function bereinigen(res: any, ids: any) {
   const ohneNull = (o: any) => Object.fromEntries(Object.entries(o).filter(([, v]) => v != null && v !== false));
   const d = res.dokument || {}, f = res.firma || {}, v = res.vertrag || {}, b = res.beleg || {}, z = res.bezug || {}, ds = res.datenschutz || {};
   const out = {
-    dokument: ohneNull({ typ: wahl(d.typ, ENUM.typ) || 'Brief', titel: txt(d.titel), datum: datum(d.datum), gueltigVon: datum(d.gueltigVon), gueltigBis: datum(d.gueltigBis) }),
-    firma: ohneNull({ name: txt(f.name), art: wahl(f.art, ENUM.firmaArt), telefon: txt(f.telefon), email: txt(f.email), hotline: txt(f.hotline) }),
-    vertrag: ohneNull({ kurzname: txt(v.kurzname), art: wahl(v.art, ENUM.vertragArt), fuerWen: wahl(v.fuerWen, ENUM.rolle), beitrag: zahl(v.beitrag), zahlweise: wahl(v.zahlweise, ENUM.zahlweise),
+    dokument: ohneNull({ typ: wahl(d.typ, ENUM_.typ) || 'Brief', titel: txt(d.titel), datum: datum(d.datum), gueltigVon: datum(d.gueltigVon), gueltigBis: datum(d.gueltigBis) }),
+    firma: ohneNull({ name: txt(f.name), art: wahl(f.art, ENUM_.firmaArt), telefon: txt(f.telefon), email: txt(f.email), hotline: txt(f.hotline) }),
+    vertrag: ohneNull({ kurzname: txt(v.kurzname), art: wahl(v.art, ENUM_.vertragArt), fuerWen: wahl(v.fuerWen, ENUM_.rolle), beitrag: zahl(v.beitrag), zahlweise: wahl(v.zahlweise, ENUM.zahlweise),
       abschluss: datum(v.abschluss), beginn: datum(v.beginn), laufzeitende: datum(v.laufzeitende), fristWert: zahl(v.fristWert), fristEinheit: wahl(v.fristEinheit, ENUM.einheit),
       verlaengerung: wahl(v.verlaengerung, ENUM.verl), kuendigungsweg: txt(v.kuendigungsweg), online: v.online === true }),
     beleg: ohneNull({ titel: txt(b.titel), betrag: zahl(b.betrag), arbeitskosten: zahl(b.arbeitskosten), steuer: wahl(b.steuer, ENUM.steuer), unbar: b.unbar === true, gewArt: wahl(b.gewArt, ENUM.gewArt), uebergabe: datum(b.uebergabe) }),
@@ -585,6 +586,20 @@ function setEigene(e: any) {
   e = e || {};
   for (const k in BASIS) ENUM[k] = BASIS[k].concat((Array.isArray(e[k]) ? e[k] : []).filter(x => typeof x === 'string' && x.trim() && !BASIS[k].includes(x)));
 }
+/* Auswahllisten mit eigenen Werten, ohne die globalen Listen zu ändern (Server: je Haushalt). Ergänzt 18.11.2026. */
+function listen(e: any): Record<string, string[]> {
+  e = e || {};
+  const out: Record<string, string[]> = {};
+  for (const k in BASIS) out[k] = BASIS[k].concat((Array.isArray(e[k]) ? e[k] : []).filter((x: any) => typeof x === 'string' && x.trim() && !BASIS[k].includes(x)));
+  return out;
+}
+/* Eigenen Wert aus der Auswahl nehmen. Einträge, die ihn schon tragen, behalten ihn. Gibt die neuen Einstellungen zurück oder null. */
+function ohneEigenes(einst: any, liste: any, wert: any) {
+  const e = Object.assign({}, einst && einst.eigene), alt = Array.isArray(e[liste]) ? e[liste] : [];
+  if (!alt.includes(wert)) return null;
+  e[liste] = alt.filter((x: any) => x !== wert);
+  return Object.assign({}, einst, { eigene: e });
+}
 /* Neuen eigenen Wert in die Einstellungen aufnehmen (ohne Doppelte). Gibt die neuen Einstellungen zurück oder null, wenn nichts zu tun ist. */
 function mitEigenem(einst: any, liste: any, wert: any) {
   wert = String(wert || '').trim();
@@ -739,4 +754,4 @@ function kuerzeAufBytes(t: any, maxBytes: any) {
   return dec.decode(roh).replace(/�$/, '') + '\n[…] Der Seitentext war zu lang und wurde hier abgeschnitten.';
 }
 
-export { kuenftigAm, kuendigungJetzt, fristEnde, kuerzeAufBytes, suche, sucheText, deckung, notfallDaten, vergleich, standAmTag, verbrauch, verbrauchJeJahr, ablesungen, jahresBefunde, jahresStand, webAdresse, istVers, dingeVon, rollenVon, KUEND_STD, SOFORT_STD, sofortListe, setEigene, mitEigenem, lebenListe, naechsterTermin, EIGEN_LISTEN, BASIS, dokMarkdown, mdNamen, icsText, kalenderListe, kalMarkieren, kalGeloescht, exportTabellen, sicherung, importOps, SICHER_COLS, aktivAm, akteKontext, dokVerzeichnis, seitenWunsch, schadenPolicen, schadenErgebnis, FKEYS, fassungAm, standAm, steckbriefAm, fassungOps, lueckePruefung, ereignisFolgen, wartung, dingFolgen, lebensFolgen, LEBEN, kuendigungsText, istKfz, tief, bereinigen, stapel, ENUM, toIso, addDays, addMonths, fmt, diffDays, heute, kuendigenBis, rechenweg, proMonat, laeuft, fixkosten, jederzeit, fortschreiben, gewBis, steuer35a, alleFristen, wichtig, MAX35A };
+export { listen, ohneEigenes, kuenftigAm, kuendigungJetzt, fristEnde, kuerzeAufBytes, suche, sucheText, deckung, notfallDaten, vergleich, standAmTag, verbrauch, verbrauchJeJahr, ablesungen, jahresBefunde, jahresStand, webAdresse, istVers, dingeVon, rollenVon, KUEND_STD, SOFORT_STD, sofortListe, setEigene, mitEigenem, lebenListe, naechsterTermin, EIGEN_LISTEN, BASIS, dokMarkdown, mdNamen, icsText, kalenderListe, kalMarkieren, kalGeloescht, exportTabellen, sicherung, importOps, SICHER_COLS, aktivAm, akteKontext, dokVerzeichnis, seitenWunsch, schadenPolicen, schadenErgebnis, FKEYS, fassungAm, standAm, steckbriefAm, fassungOps, lueckePruefung, ereignisFolgen, wartung, dingFolgen, lebensFolgen, LEBEN, kuendigungsText, istKfz, tief, bereinigen, stapel, ENUM, toIso, addDays, addMonths, fmt, diffDays, heute, kuendigenBis, rechenweg, proMonat, laeuft, fixkosten, jederzeit, fortschreiben, gewBis, steuer35a, alleFristen, wichtig, MAX35A };
