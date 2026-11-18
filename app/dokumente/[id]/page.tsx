@@ -2,6 +2,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { AblageortFeld } from "@/components/akte/ablageort";
 import { SteckbriefListe } from "@/components/dokument/steckbrief";
+import { DokumentZuordnung } from "@/components/dokument/zuordnung";
 import { useParams, useRouter } from "next/navigation";
 import { Kopf } from "@/components/akte/kopf";
 import { useAkte, verwerfen } from "@/lib/akte/useAkte";
@@ -17,7 +18,7 @@ type SeiteAnsicht = { nr: number; text: string; url?: string };
 function Dokument() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { akte, haushaltId, fehler } = useAkte();
+  const { akte, haushaltId, fehler, neuLaden } = useAkte();
   const sl = useSchwaerzliste();
   useEffect(() => { if (sl.zustand === "unbekannt") void sl.pruefen(); }, [sl]);
   const [seiten, setSeiten] = useState<SeiteAnsicht[] | null>(null);
@@ -70,6 +71,7 @@ function Dokument() {
             <span className="leise">{[d.typ, d.datum ? R.fmt(d.datum) : "", d.gueltigVon ? "gültig ab " + R.fmt(d.gueltigVon) : "", `${d.seiten} Seite(n)`].filter(Boolean).join(" · ")}</span>
             {haushaltId && <AblageortFeld tabelle="dokumente" id={id} haushaltId={haushaltId} wert={String(d.ablageort ?? "")} />}
           </section>
+          {akte && haushaltId && <DokumentZuordnung key={[d.typ, d.vertragId, d.dingId, d.firmaId].join("|")} d={d} S={akte} haushaltId={haushaltId} onGespeichert={neuLaden} />}
           {d.steckbrief != null && (
             <section className="karte">
               <h2>Steckbrief</h2>
