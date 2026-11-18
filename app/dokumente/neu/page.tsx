@@ -35,7 +35,9 @@ export default function DokumentNeu() {
   const [fehler, setFehler] = useState("");
   const [kiFehler, setKiFehler] = useState(""); // direkt unter „Mit KI auslesen“, oben wäre sie außer Sicht
   const [kiLaeuft, setKiLaeuft] = useState(false);
-  const [meta, setMeta] = useState<Record<string, string>>({ typ: "Brief", titel: "", datum: "", gueltigVon: "", gueltigBis: "", vertragId: "", dingId: "", firmaId: "", ablageort: "" });
+  const [meta, setMeta] = useState<Record<string, string>>(() => ({ typ: "Brief", titel: "", datum: "", gueltigVon: "", gueltigBis: "", vertragId: "", firmaId: "", ablageort: "",
+    // von der Seite eines Dings: Ding vorauswählen (?dingId=…); das Formular erscheint erst nach dem Laden einer Datei, daher kein Unterschied beim ersten Rendern
+    dingId: typeof window === "undefined" ? "" : ((id) => (/^[0-9a-f-]{36}$/.test(id) ? id : ""))(new URLSearchParams(window.location.search).get("dingId") ?? "") }));
   const eingabe = useRef<HTMLInputElement>(null);
   const mehr = useRef<HTMLInputElement>(null);
   // Dokument-ID erst bei Bedarf erzeugen (nicht beim Vorab-Rendern); bleibt für dieses Dokument gleich

@@ -3,7 +3,7 @@ import { Suspense, useState } from "react";
 import { RegelStand } from "@/components/regel-stand";
 import { TresorNummern } from "@/components/tresor-nummern";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 
 import { useAkte, speichern, vertragSpeichern, verwerfen, endgueltigLoeschen, opsAnwenden } from "@/lib/akte/useAkte";
 import { zuZeile, type Akte, type Eintrag } from "@/lib/akte/abbilden";
@@ -13,6 +13,8 @@ import * as R from "@/lib/regeln";
 import { BEREICHE, NEU } from "@/components/akte/definitionen";
 import { Formular, type Bezuege } from "@/components/akte/formular";
 import { Kopf } from "@/components/akte/kopf";
+import { TerminVorlagen } from "@/components/akte/terminvorlagen";
+import { dingAkte } from "@/lib/akte/dingakte";
 
 const euro = (n: number) => n.toLocaleString("de-DE", { style: "currency", currency: "EUR" });
 
@@ -31,6 +33,7 @@ function Detail() {
   const { akte, haushaltId, fehler, neuLaden } = useAkte();
   const [aktion, setAktion] = useState("");
   const neu = id === "neu";
+  const such = useSearchParams();
 
   if (!def) return <main className="seite"><Kopf /><p className="fehler">Diesen Bereich gibt es nicht.</p></main>;
   const liste = akte ? (bereich === "termine" ? akte.fristen.filter((f) => !f.abgeleitet) : (akte[def.tabelle as keyof Akte] as Eintrag[])) : [];
@@ -89,7 +92,9 @@ function Detail() {
       {akte && eintrag && def.tabelle === "vertraege" && <Kuendigungsentwurf v={eintrag} S={akte} />}
       {akte && eintrag && def.tabelle === "vertraege" && <RegelStand k={R.istVers(eintrag) ? "kuendigung" : "verbraucherLaufzeit"} />}
       {akte && eintrag && def.tabelle === "belege" && !!eintrag.gewArt && String(eintrag.gewArt) !== "keine" && <RegelStand k="gewaehrleistung" />}
-      {akte && eintrag && (def.tabelle === "dinge" || def.tabelle === "firmen") && <Bezogen e={eintrag} feld={def.tabelle === "dinge" ? "dingId" : "firmaId"} S={akte} />}
+      {akte && eintrag && def.tabelle === "firmen" && <Bezogen e={eintrag} feld="firmaId" S={akte} />}
+      {akte && eintrag && def.tabelle === "dinge" && <DingUebersicht d={eintrag} S={akte} />}
+      {akte && eintrag && haushaltId && def.tabelle === "dinge" && <TerminVorlagen akte={akte} haushaltId={haushaltId} onAngelegt={neuLaden} festDingId={eintrag.id} />}
 
       {akte && (neu || eintrag) && (
         <Formular
@@ -98,8 +103,8 @@ function Detail() {
           akte={akte}
           eigeneId={dbId ?? undefined}
           haushaltId={haushaltId ?? undefined}
-          start={eintrag ?? NEU[bereich]}
-          mitBezuegen={def.tabelle === "vertraege" ? { dinge: R.dingeVon(eintrag ?? {}), rollen: R.rollenVon(eintrag ?? {}) } : undefined}
+          start={eintrag ?? { ...NEU[bereich], ...vorbelegung(bereich, such, akte) }}
+          mitBezuegen={def.tabelle === "vertraege" ? { dinge: R.dingeVon(eintrag ?? vorbelegung(bereich, such, akte)), rollen: R.rollenVon(eintrag ?? {}) } : undefined}
           onSpeichern={sichern}
         />
       )}
@@ -157,6 +162,79 @@ function Bezogen({ e, feld, S }: { e: Eintrag; feld: "dingId" | "firmaId"; S: Ak
         {belege.map((b) => <li key={b.id} className="eintrag"><Link className="verweis" href={`/akte/belege/${b.id}`}><strong>{String(b.titel)}</strong><span className="leise">Beleg{b.datum ? " · " + R.fmt(b.datum) : ""}</span></Link></li>)}
       </ul>
     </section>
+  );
+}
+
+/** Bei „neu“: Ding (oder Vertrag) aus dem Link vorauswählen – nur vorhandene IDs, nur Felder, die es im Bereich gibt. */
+function vorbelegung(bereich: string, such: URLSearchParams, S: Akte): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  const ding = such.get("dingId"), vertrag = such.get("vertragId");
+  const felder = BEREICHE[bereich]?.felder.map((f) => f.name) ?? [];
+  if (ding && S.dinge.some((d) => d.id === ding)) {
+    if (felder.includes("dingId")) out.dingId = ding;
+    if (bereich === "vertraege") out.dingId = ding;
+  }
+  if (vertrag && felder.includes("vertragId") && S.vertraege.some((v) => v.id === vertrag)) out.vertragId = vertrag;
+  return out;
+}
+
+/** Mini-Akte eines Dings: Verträge, Dokumente, Belege, Termine, Kosten – mit Schnellknöpfen, die das Ding vorauswählen. */
+function DingUebersicht({ d, S }: { d: Eintrag; S: Akte }) {
+  const a = dingAkte(S, d.id, R.heute());
+  const q = `?dingId=${encodeURIComponent(d.id)}`;
+  const leer = <p className="leise">Noch nichts.</p>;
+  return (
+    <>
+      <section className="karte">
+        <h2>Auf einen Blick</h2>
+        <p>Laufende Verträge: <strong>{euro(a.kosten.vertraegeJahr)}</strong> pro Jahr · Belege der letzten 12 Monate: <strong>{euro(a.kosten.belege12Monate)}</strong></p>
+        {a.vertraege.some((v) => R.dingeVon(v).length > 1 && R.laeuft(v)) && <p className="leise">Verträge, die mehrere Dinge betreffen, zählen hier voll.</p>}
+        <div className="knoepfe">
+          <Link className="knopf klein" href={`/akte/vertraege/neu${q}`}>＋ Vertrag</Link>
+          <Link className="knopf klein" href={`/dokumente/neu${q}`}>＋ Dokument</Link>
+          <Link className="knopf klein" href={`/akte/belege/neu${q}`}>＋ Beleg</Link>
+          <Link className="knopf klein" href={`/akte/termine/neu${q}`}>＋ Termin</Link>
+        </div>
+      </section>
+      <section className="karte">
+        <h2>Nächste Termine</h2>
+        {a.termine.length ? (
+          <ul className="liste">
+            {a.termine.slice(0, 8).map((t) => (
+              <li key={t.id} className="eintrag"><Link className="verweis" href="/akte/termine"><strong>{t.titel}</strong>
+                <span className={t.ueberfaellig ? "fehler" : "leise"}>{t.datum ? R.fmt(t.datum) : "ohne Datum"}{t.ueberfaellig ? " · überfällig" : ""}</span></Link></li>
+            ))}
+          </ul>
+        ) : leer}
+      </section>
+      <section className="karte">
+        <h2>Verträge</h2>
+        {a.vertraege.length ? (
+          <ul className="liste">
+            {a.vertraege.map((v) => <li key={v.id} className="eintrag"><Link className="verweis" href={`/akte/vertraege/${v.id}`}><strong>{String(v.kurzname)}</strong>
+              <span className="leise">{[v.art, String(v.status), v.beitrag ? euro(Number(v.beitrag)) + " " + String(v.zahlweise ?? "") : ""].filter(Boolean).join(" · ")}</span></Link></li>)}
+          </ul>
+        ) : leer}
+      </section>
+      <section className="karte">
+        <h2>Dokumente</h2>
+        {a.dokumente.length ? (
+          <ul className="liste">
+            {a.dokumente.map((x) => <li key={x.id} className="eintrag"><Link className="verweis" href={`/dokumente/${x.id}`}><strong>{String(x.titel || x.typ)}</strong>
+              <span className="leise">{[x.typ, x.datum ? R.fmt(x.datum) : ""].filter(Boolean).join(" · ")}</span></Link></li>)}
+          </ul>
+        ) : leer}
+      </section>
+      <section className="karte">
+        <h2>Belege</h2>
+        {a.belege.length ? (
+          <ul className="liste">
+            {a.belege.map((b) => <li key={b.id} className="eintrag"><Link className="verweis" href={`/akte/belege/${b.id}`}><strong>{String(b.titel)}</strong>
+              <span className="leise">{[b.datum ? R.fmt(b.datum) : "", b.betrag != null ? euro(Number(b.betrag)) : ""].filter(Boolean).join(" · ")}</span></Link></li>)}
+          </ul>
+        ) : leer}
+      </section>
+    </>
   );
 }
 
