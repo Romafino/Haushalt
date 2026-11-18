@@ -97,6 +97,7 @@ function Detail() {
           bereich={def}
           akte={akte}
           eigeneId={dbId ?? undefined}
+          haushaltId={haushaltId ?? undefined}
           start={eintrag ?? NEU[bereich]}
           mitBezuegen={def.tabelle === "vertraege" ? { dinge: R.dingeVon(eintrag ?? {}), rollen: R.rollenVon(eintrag ?? {}) } : undefined}
           onSpeichern={sichern}

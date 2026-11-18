@@ -579,8 +579,8 @@ function mdNamen(dokumente: any) {
 
 /* ---------- Eigene Auswahlwerte, eigene Lebensereignisse, wiederkehrende Termine ---------- */
 ENUM.dingKat = ['Haus', 'Auto', 'Gerät', 'Wertsache'];
-const BASIS: Record<string, string[]> = { typ: ENUM.typ.slice(), firmaArt: ENUM.firmaArt.slice(), vertragArt: ENUM.vertragArt.slice(), rolle: ENUM.rolle.slice(), dingKat: ENUM.dingKat.slice() };
-const EIGEN_LISTEN = { firmaArt: 'Art der Firma', dingKat: 'Bereich für Dinge', vertragArt: 'Art des Vertrags', rolle: 'Rolle (Für wen)', typ: 'Dokumenttyp' };
+const BASIS: Record<string, string[]> = { typ: ENUM.typ.slice(), firmaArt: ENUM.firmaArt.slice(), vertragArt: ENUM.vertragArt.slice(), rolle: ENUM.rolle.slice(), dingKat: ENUM.dingKat.slice(), ereignis: [] };
+const EIGEN_LISTEN = { firmaArt: 'Art der Firma', dingKat: 'Bereich für Dinge', vertragArt: 'Art des Vertrags', rolle: 'Rolle (Für wen)', typ: 'Dokumenttyp', ereignis: 'Eigene Ereignisse (Vertrag)' };
 /* Eigene Werte aus den Einstellungen an die festen Listen anhängen. */
 function setEigene(e: any) {
   e = e || {};

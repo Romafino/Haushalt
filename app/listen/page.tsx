@@ -5,13 +5,11 @@ import { useState } from "react";
 import { Kopf } from "@/components/akte/kopf";
 import { useAkte } from "@/lib/akte/useAkte";
 import { supabaseBrowser } from "@/lib/supabase/browser";
-import { freitextPruefen } from "@/lib/akte/freitext";
-import { listenTreffer } from "@/lib/schwaerzen/seitentext";
+import { eigenerWert, eigenerWertFehler, MAX_EIGEN as MAX } from "@/lib/akte/eigene";
 import { useSchwaerzliste } from "@/components/schwaerzliste/kontext";
 import * as R from "@/lib/regeln";
 
 const LISTEN = R.EIGEN_LISTEN as Record<string, string>;
-const MAX = 40;
 
 export default function EigeneListen() {
   const { akte, haushaltId, neuLaden } = useAkte();
@@ -35,10 +33,8 @@ export default function EigeneListen() {
 
   async function hinzufuegen(k: string) {
     if (!akte) return;
-    const wert = (neu[k] ?? "").trim().replace(/\s+/g, " ");
-    const fehler = !wert ? "Bitte einen Wert eingeben."
-      : wert.length > MAX ? `Höchstens ${MAX} Zeichen.`
-      : freitextPruefen(wert, "streng") ?? (listenTreffer(wert, sl.liste).length ? "Bitte keine Namen oder Angaben aus der Schwärzliste – der Wert geht beim Auslesen an die KI." : null);
+    const wert = eigenerWert(neu[k] ?? "");
+    const fehler = eigenerWertFehler(wert, sl.liste);
     if (fehler) return setMeldung((m) => ({ ...m, [k]: fehler }));
     const einst = R.mitEigenem(akte.einst, k, wert);
     if (!einst) return setMeldung((m) => ({ ...m, [k]: "Diesen Wert gibt es schon." }));
