@@ -7,7 +7,7 @@ import { freitextPruefen } from "@/lib/akte/freitext";
 import { naechstesDatum, VORLAGEN, vorlagenTitel, type Vorlage } from "@/lib/akte/vorlagen";
 import * as R from "@/lib/regeln";
 
-export function TerminVorlagen({ akte, haushaltId, onAngelegt }: { akte: Akte; haushaltId: string; onAngelegt: () => Promise<void> }) {
+export function TerminVorlagen({ akte, haushaltId, onAngelegt, festDingId }: { akte: Akte; haushaltId: string; onAngelegt: () => Promise<void>; festDingId?: string }) {
   const [v, setV] = useState<Vorlage | null>(null);
   const [dingId, setDingId] = useState("");
   const [letztes, setLetztes] = useState("");
@@ -16,8 +16,11 @@ export function TerminVorlagen({ akte, haushaltId, onAngelegt }: { akte: Akte; h
   const [meldung, setMeldung] = useState("");
   const [laeuft, setLaeuft] = useState(false);
 
-  const dinge = akte.dinge.filter((d) => (d.status ?? "aktiv") === "aktiv" && (!v?.bereich || d.kategorie === v.bereich));
-  const waehlen = (x: Vorlage) => { setV(x); setMonate(x.monate); setDingId(""); setLetztes(""); setTitel(vorlagenTitel(x)); setMeldung(""); };
+  const fest = festDingId ? akte.dinge.find((d) => d.id === festDingId) : undefined;
+  // auf der Seite eines Dings: nur passende Vorlagen (z. B. Auto → TÜV, Reifen), Ding fest
+  const vorlagen = fest ? VORLAGEN.filter((x) => !x.bereich || x.bereich === fest.kategorie) : VORLAGEN;
+  const dinge = fest ? [] : akte.dinge.filter((d) => (d.status ?? "aktiv") === "aktiv" && (!v?.bereich || d.kategorie === v.bereich));
+  const waehlen = (x: Vorlage) => { setV(x); setMonate(x.monate); setDingId(festDingId ?? ""); setLetztes(""); setTitel(vorlagenTitel(x, fest?.name as string | undefined)); setMeldung(""); };
   let naechstes = "";
   try { naechstes = letztes ? naechstesDatum(letztes, monate, R.heute()) : ""; } catch { naechstes = ""; }
 
@@ -37,9 +40,10 @@ export function TerminVorlagen({ akte, haushaltId, onAngelegt }: { akte: Akte; h
 
   return (
     <section className="karte formular">
-      <h2>Vorlagen</h2>
+      <h2>{fest ? "Wiederkehrende Termine" : "Vorlagen"}</h2>
+      {fest && vorlagen.length === 0 && <p className="leise">Für diesen Bereich gibt es keine Vorlage – „＋ Termin“ legt einen eigenen an (auch wiederkehrend).</p>}
       <div className="schnell">
-        {VORLAGEN.map((x) => (
+        {vorlagen.map((x) => (
           <button key={x.schluessel} type="button" className={v?.schluessel === x.schluessel ? "klein" : "klein zweitrangig"} onClick={() => waehlen(x)}>{x.titel}</button>
         ))}
       </div>
