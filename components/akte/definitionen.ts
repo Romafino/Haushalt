@@ -14,6 +14,8 @@ export type Feld = {
   pruefung?: Pruefung;
   hilfe?: string;
   gruppe?: string;
+  /** Auswahlliste mit eigenen Werten aus den Einstellungen (Übersicht → Eigene Listen) */
+  liste?: "vertragArt" | "firmaArt" | "dingKat";
 };
 
 const opt = (l: string[], texte: Record<string, string> = {}): Option[] => l.map((w) => ({ wert: w, text: texte[w] ?? w }));
@@ -34,7 +36,7 @@ export const BEREICHE: Record<string, Bereich> = {
     tabelle: "vertraege", titel: "Verträge", einzahl: "Vertrag", titelFeld: "kurzname",
     felder: [
       { name: "kurzname", text: "Kurzname", art: "text", pflicht: true, pruefung: "streng", hilfe: "z. B. „Hausrat“ oder „Kfz Kombi“" },
-      { name: "art", text: "Art", art: "wahl", pflicht: true, optionen: opt(R.ENUM.vertragArt) },
+      { name: "art", text: "Art", art: "wahl", pflicht: true, liste: "vertragArt" },
       { name: "firmaId", text: "Firma", art: "verweis", verweis: "firmen" },
       { name: "status", text: "Status", art: "wahl", pflicht: true, optionen: opt(Object.keys(STATUS_VERTRAG), STATUS_VERTRAG) },
       { name: "beitrag", text: "Beitrag", art: "euro", gruppe: "Kosten" },
@@ -59,7 +61,7 @@ export const BEREICHE: Record<string, Bereich> = {
     tabelle: "firmen", titel: "Firmen", einzahl: "Firma", titelFeld: "name",
     felder: [
       { name: "name", text: "Name", art: "text", pflicht: true, pruefung: "normal" },
-      { name: "art", text: "Art", art: "wahl", optionen: opt(R.ENUM.firmaArt) },
+      { name: "art", text: "Art", art: "wahl", liste: "firmaArt" },
       { name: "hotline", text: "Schaden-/Störungshotline", art: "tel", pruefung: "keine" },
       { name: "telefon", text: "Telefon", art: "tel", pruefung: "keine" },
       { name: "email", text: "E-Mail", art: "email", pruefung: "keine" },
@@ -71,7 +73,7 @@ export const BEREICHE: Record<string, Bereich> = {
     tabelle: "dinge", titel: "Dinge", einzahl: "Ding", titelFeld: "name",
     felder: [
       { name: "name", text: "Bezeichnung", art: "text", pflicht: true, pruefung: "streng", hilfe: "z. B. „Heizung“, „Kombi“, „Waschmaschine“" },
-      { name: "kategorie", text: "Bereich", art: "wahl", pflicht: true, optionen: opt(R.ENUM.dingKat) },
+      { name: "kategorie", text: "Bereich", art: "wahl", pflicht: true, liste: "dingKat" },
       { name: "hersteller", text: "Hersteller", art: "text", pruefung: "streng" },
       { name: "modell", text: "Modell", art: "text", pruefung: "normal", hilfe: "keine Serien- oder Fahrgestellnummer" },
       { name: "jahr", text: "Kauf-/Baujahr", art: "zahl" },
@@ -120,3 +122,9 @@ export const NEU: Record<string, Record<string, unknown>> = {
 };
 
 export const ROLLEN = R.ENUM.rolle;
+
+/** Auswahl mit eigenen Werten; der aktuelle Wert bleibt wählbar, auch wenn er aus der Liste genommen wurde. */
+export function auswahl(l: string[], aktuell?: unknown): Option[] {
+  const a = typeof aktuell === "string" && aktuell && !l.includes(aktuell) ? [aktuell] : [];
+  return [...l, ...a].map((w) => ({ wert: w, text: w }));
+}

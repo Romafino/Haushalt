@@ -39,7 +39,7 @@ export async function kiAuslesen(haushaltId: string, seiten: Seite[], liste: Lis
 
   // zweite Prüfung im Browser: gleiche Bereinigung wie auf dem Server, dann gegen die entschlüsselte Schwärzliste
   const ids = { vertraege: akte.vertraege.map((v) => v.id), dinge: akte.dinge.map((d) => d.id), firmen: akte.firmen.map((f) => f.id) };
-  let vorschlag = vorschlagAus(j.vorschlag, ids) as Vorschlag;
+  let vorschlag = vorschlagAus(j.vorschlag, ids, akte.einst.eigene) as Vorschlag;
   const roh = JSON.stringify(vorschlag);
   const gefunden = listenTreffer(roh, liste);
   let warnung: string | undefined;

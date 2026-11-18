@@ -16,8 +16,8 @@ export function jsonAus(text: string): unknown {
 export type Ids = { vertraege: string[]; dinge: string[]; firmen: string[] };
 
 /** Bereinigter Vorschlag; Texte werden zusätzlich gegen Muster geschwärzt (falls die KI doch eine Nummer ausgibt). */
-export function vorschlagAus(roh: unknown, ids: Ids) {
-  const v = R.bereinigen(roh, ids);
+export function vorschlagAus(roh: unknown, ids: Ids, eigene?: unknown) {
+  const v = R.bereinigen(roh, ids, eigene);
   return R.tief(v, (s: string) => textSauber(s));
 }
 

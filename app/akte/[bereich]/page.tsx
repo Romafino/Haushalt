@@ -85,7 +85,7 @@ function Inhalt({ bereich, akte: S }: { bereich: string; akte: Akte }) {
   }
   if (bereich === "dinge") {
     if (!S.dinge.length) return leer;
-    const kats = Array.from(new Set([...R.ENUM.dingKat, ...S.dinge.map((d) => String(d.kategorie))]));
+    const kats = Array.from(new Set([...R.listen(S.einst.eigene).dingKat, ...S.dinge.map((d) => String(d.kategorie))]));
     return <>{kats.map((k) => (
       <div key={k} id={k.toLowerCase()}>
         <Gruppe titel={k} eintraege={S.dinge.filter((d) => d.kategorie === k).sort((a, b) => String(a.name).localeCompare(String(b.name), "de"))
