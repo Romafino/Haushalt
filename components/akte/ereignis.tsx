@@ -60,7 +60,7 @@ export function EreignisEintragen({ v, S, haushaltId, onGeaendert }: { v: Eintra
     if (typ === "eigen") {
       if (!w.was) return "Bitte angeben, was passiert ist.";
       if (!w.datum) return "Bitte das Datum angeben.";
-      const f = freitextPruefen(w.notiz ?? "", "streng") ?? (listenTreffer(w.notiz ?? "", sl.liste).length ? "Bitte keine Namen oder Angaben aus der Schwärzliste in die Notiz." : null);
+      const f = freitextPruefen(w.notiz ?? "", "streng", sl.zustand === "offen" ? sl.liste : null) ?? (listenTreffer(w.notiz ?? "", sl.liste).length ? "Bitte keine Namen oder Angaben aus der Schwärzliste in die Notiz." : null);
       return f ?? { was: w.was, datum: w.datum, notiz: (w.notiz ?? "").trim() };
     }
     return "Bitte ein Ereignis wählen.";

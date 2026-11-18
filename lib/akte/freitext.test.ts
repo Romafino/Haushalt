@@ -34,4 +34,27 @@ describe('freitextPruefen', () => {
   it('keine: z. B. Telefon und Hotline', () => {
     expect(freitextPruefen('0800 1234567', 'keine')).toBeNull();
   });
+
+  describe('Ausnahmen (18.11.2026)', () => {
+    const L = [{ text: '069 1234 567-89', ersatz: '[Telefon]' }];
+    it('Normnummern sind erlaubt', () => {
+      expect(freitextPruefen('Heizlast nach DIN EN 12831, Elektro nach DIN 18015')).toBeNull();
+      expect(freitextPruefen('Zertifikat DIN EN ISO 9001:2015')).toBeNull();
+      expect(freitextPruefen('DIN 18015, Vertrag 71206680')).toMatch(/71206680/);
+    });
+    it('Firmen-Telefon und -Fax mit Bezeichnung sind erlaubt (bei entsperrter Schwärzliste)', () => {
+      const t = 'Team Kundenberatung\nTelefon 069 2475 453-53\nTelefax 069 2475 453-99';
+      expect(freitextPruefen(t, 'streng', L)).toBeNull();
+      expect(freitextPruefen('Hotline: 0800 1234567', 'streng', [])).toBeNull();
+    });
+    it('Telefonnummer ohne entsperrte Schwärzliste, Handynummer oder eigene Nummer: abgelehnt', () => {
+      expect(freitextPruefen('Telefon 069 2475 453-53')).toMatch(/entsperrter Schwärzliste/);
+      expect(freitextPruefen('Tel. 0151 23456789', 'streng', [])).toMatch(/Handynummern/);
+      expect(freitextPruefen('Telefon 069 1234567-89', 'streng', L)).toMatch(/Schwärzliste/);
+    });
+    it('Nummer ohne Bezeichnung bleibt gesperrt, die Meldung nennt sie', () => {
+      expect(freitextPruefen('Ansprechpartner 069 2475 453-53', 'streng', [])).toMatch(/gefunden: /);
+      expect(freitextPruefen('Kundennummer 4711 0815, Telefon 069 2475 453-53', 'streng', [])).toMatch(/nummern/i);
+    });
+  });
 });
