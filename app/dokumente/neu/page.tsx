@@ -73,9 +73,21 @@ export default function DokumentNeu() {
   const kiSeiten = useMemo(() => (seiten ? seitenInGrenze(seiten.map((x, i) => ({ nr: i + 1, text: seitenText(x.stuecke, x.balken, sl.liste) }))) : 0), [seiten, sl.liste]);
   const labels = useMemo(() => Array.from(new Set([...sl.liste.map((e) => e.ersatz), "[Name]", "[Adresse]", "[Telefon]", "[E-Mail]", "[Nummer]", "[Datum]", "[geschwärzt]"])), [sl.liste]);
 
+  /** Alles zurücksetzen: Datei, Seiten, Vorschlag, Meldungen – wie frisch geöffnet. */
+  function neuBeginnen() {
+    dokId.current = null;
+    setSeiten(null); setAktiv(0); setVerlaeufe({}); setKi(null); setAuswahl(null); setDubletten(null); setDublettenOk(false);
+    setFehler(""); setKiFehler(""); setSpeichernFehler(""); setStatus(""); setHinweise([]); setAbgewaehlt([]);
+    setMeta((m) => ({ ...m, typ: "Brief", titel: "", datum: "", gueltigVon: "", gueltigBis: "", vertragId: "", firmaId: "", ablageort: "" }));
+    if (eingabe.current) eingabe.current.value = "";
+    if (mehr.current) mehr.current.value = "";
+  }
+
   async function laden(files: FileList | File[] | null) {
     if (!files?.length) return;
     setFehler(""); setKiFehler(""); setSeiten(null); setAktiv(0); setVerlaeufe({}); setKi(null); setAuswahl(null); setDubletten(null); setDublettenOk(false);
+    setSpeichernFehler(""); setHinweise([]); setAbgewaehlt([]);
+    dokId.current = null; // neue Datei = neues Dokument (sonst kollidieren die Seitenbilder mit dem zuletzt gespeicherten)
     try {
       const r = await dateienLaden(Array.from(files), setStatus);
       try { await erkennen(r.seiten, setStatus); }
@@ -159,6 +171,7 @@ export default function DokumentNeu() {
         const f = await sl.nummernSpeichern({ ...sl.nummern, [vertragId]: zusammen });
         if (f) setFehler("Dokument gespeichert, aber die Nummern konnten nicht in den Tresor: " + f);
       }
+      dokId.current = null; // falls die Seite per „Zurück“ wieder auftaucht: nicht dieselbe ID noch einmal verwenden
       router.replace(`/dokumente/${id}`);
     } catch (e2) {
       const f = e2 instanceof Error ? e2.message : "Speichern hat nicht geklappt.";
@@ -197,6 +210,7 @@ export default function DokumentNeu() {
             {ki && <p className="leise">Weitere Seiten nur vor „Mit KI auslesen“ – sonst fehlen sie in der Auswertung.</p>}
           </>
         )}
+        {(seiten || fehler) && <button type="button" className="zweitrangig" onClick={neuBeginnen} disabled={!!status}>Neu beginnen (Auswahl verwerfen)</button>}
         <button type="button" className="zweitrangig" onClick={beispiel} disabled={!!status}>Beispiel-Dokument laden (erfundene Daten)</button>
         {status && <p className="leise" role="status">{status}</p>}
         {fehler && <p className="fehler" role="alert">{fehler}</p>}

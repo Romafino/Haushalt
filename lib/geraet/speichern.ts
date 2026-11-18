@@ -31,7 +31,7 @@ export async function dokumentSpeichern(p: {
       p.status(`Seite ${i + 1} von ${p.seiten.length} wird hochgeladen …`);
       const pfad = `${p.haushaltId}/${id}/${i + 1}.jpg`;
       const { error } = await sb.storage.from("dokumente").upload(pfad, await geschwaerztesBild(p.seiten[i]), { contentType: "image/jpeg", upsert: false });
-      if (error) throw new Error("Hochladen hat nicht geklappt.");
+      if (error) throw new Error(/exist|duplicate/i.test(error.message) ? "Dieses Dokument ist schon gespeichert (unter Dokumente). Für ein neues Dokument bitte „Neu beginnen“." : "Hochladen hat nicht geklappt.");
       pfade.push(pfad);
     }
     p.status("Wird gespeichert …");
