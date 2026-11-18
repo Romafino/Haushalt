@@ -35,6 +35,8 @@ export default function DokumentNeu() {
   const [fehler, setFehler] = useState("");
   const [kiFehler, setKiFehler] = useState(""); // direkt unter „Mit KI auslesen“, oben wäre sie außer Sicht
   const [kiLaeuft, setKiLaeuft] = useState(false);
+  const [speichernFehler, setSpeichernFehler] = useState(""); // direkt unter „Geschwärzt speichern“
+  const [speichernLaeuft, setSpeichernLaeuft] = useState(false);
   const [meta, setMeta] = useState<Record<string, string>>(() => ({ typ: "Brief", titel: "", datum: "", gueltigVon: "", gueltigBis: "", vertragId: "", firmaId: "", ablageort: "",
     // von der Seite eines Dings: Ding vorauswählen (?dingId=…); das Formular erscheint erst nach dem Laden einer Datei, daher kein Unterschied beim ersten Rendern
     dingId: typeof window === "undefined" ? "" : ((id) => (/^[0-9a-f-]{36}$/.test(id) ? id : ""))(new URLSearchParams(window.location.search).get("dingId") ?? "") }));
@@ -52,8 +54,8 @@ export default function DokumentNeu() {
   // Dubletten: einmal je Dokument prüfen, vor KI-Aufruf bzw. Speichern; nach Bestätigung nicht erneut
   const [dubletten, setDubletten] = useState<Dublette[] | null>(null);
   const [dublettenOk, setDublettenOk] = useState(false);
-  async function dublettenGeprueft(): Promise<boolean> {
-    if (dublettenOk || !seiten || !haushaltId) return true;
+  async function dublettenGeprueft(trotzdem = false): Promise<boolean> {
+    if (trotzdem || dublettenOk || !seiten || !haushaltId) return true;
     setStatus("Wird mit vorhandenen Dokumenten verglichen …");
     const d = await dublettenSuchen(haushaltId, seiten, sl.liste);
     setStatus("");
@@ -131,13 +133,15 @@ export default function DokumentNeu() {
     setStatus(""); setKiLaeuft(false);
   }
 
-  async function speichern(e: FormEvent) {
-    e.preventDefault();
+  async function speichern(e?: FormEvent, trotzdem = false) {
+    e?.preventDefault();
     if (!seiten || !haushaltId) return;
     const t = freitextPruefen(meta.titel, "streng") ?? freitextPruefen(meta.ablageort, "streng");
-    if (t) return setFehler("Titel: " + t);
-    setFehler("");
-    if (!(await dublettenGeprueft())) return;
+    if (t) { setSpeichernFehler("Titel: " + t); return setFehler("Titel: " + t); }
+    setFehler(""); setSpeichernFehler("");
+    if (trotzdem) { setDublettenOk(true); setDubletten(null); }
+    if (!(await dublettenGeprueft(trotzdem))) return;
+    setSpeichernLaeuft(true);
     try {
       let m: Record<string, unknown> = Object.fromEntries(Object.entries(meta).map(([k, v]) => [k, v || null]));
       let ops: ReturnType<typeof uebernahme>["ops"] = [];
@@ -157,9 +161,10 @@ export default function DokumentNeu() {
       }
       router.replace(`/dokumente/${id}`);
     } catch (e2) {
-      setFehler(e2 instanceof Error ? e2.message : "Speichern hat nicht geklappt.");
+      const f = e2 instanceof Error ? e2.message : "Speichern hat nicht geklappt.";
+      setFehler(f); setSpeichernFehler(f);
     }
-    setStatus("");
+    setStatus(""); setSpeichernLaeuft(false);
   }
 
   if (sl.zustand !== "offen") {
@@ -291,6 +296,18 @@ export default function DokumentNeu() {
             )}
             {hinweise.length > 0 && <ul className="leise">{hinweise.map((h, i) => <li key={i}>{h}</li>)}</ul>}
             <button type="submit" disabled={!!status}>Geschwärzt speichern</button>
+            {speichernLaeuft && status && <p className="leise" role="status">{status}</p>}
+            {speichernFehler && <p className="fehler" role="alert">{speichernFehler}</p>}
+            {dubletten && !dublettenOk && (
+              <div role="alert">
+                <p className="fehler">Noch nicht gespeichert – das sieht aus wie ein vorhandenes Dokument:{" "}
+                  {dubletten.map((d, i) => <span key={d.dokument_id}>{i > 0 && ", "}<Link href={`/dokumente/${d.dokument_id}`}>{d.titel || d.typ}</Link>{d.gleich ? " (gleicher Text)" : ` (${Math.round(d.aehnlichkeit * 100)} %)`}</span>)}
+                </p>
+                <div className="knoepfe">
+                  <button type="button" className="zweitrangig" disabled={!!status} onClick={() => void speichern(undefined, true)}>Trotzdem speichern</button>
+                </div>
+              </div>
+            )}
           </form>
         </>
       )}
